@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Princess: Magic Kingdom - Jogo de Plataforma 2D</title>
+  <meta name="description" content="Acompanhe a princesa aventureira através de um reino mágico de contos de fadas para salvar o castelo encantado!">
+  <link rel="stylesheet" href="style.css">
+  <!-- Google Fonts para tipografia fofa e moderna de conto de fadas -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Quicksand:wght@600;700;800&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Container principal do jogo -->
+  <div id="gameContainer">
+    <!-- Canvas de renderização do jogo -->
+    <canvas id="gameCanvas" width="960" height="540"></canvas>
+
+    <!-- HUD superior (visível durante a partida) -->
+    <header id="gameHud" class="hud-overlay" style="display: none;">
+      <div class="hud-group">
+        <div class="hud-badge hearts-badge" id="hudLives" title="Vidas">
+          <span class="hud-icon">❤️</span>
+          <span class="hud-val" id="valLives">3</span>
+        </div>
+        <div class="hud-badge coins-badge" id="hudCoins" title="Moedas Douradas">
+          <span class="hud-icon">🪙</span>
+          <span class="hud-val" id="valCoins">0</span>
+        </div>
+        <div class="hud-badge gems-badge" id="hudCrystals" title="Cristais Mágicos">
+          <span class="hud-icon">💎</span>
+          <span class="hud-val" id="valCrystals">0</span>
+        </div>
+      </div>
+
+      <div class="hud-center">
+        <div class="hud-level-title" id="hudLevelName">Fase 1: Jardim Encantado</div>
+        <div class="hud-badge score-badge" id="hudScore" title="Pontuação">
+          <span class="hud-icon">⭐</span>
+          <span class="hud-val" id="valScore">000000</span>
+        </div>
+      </div>
+
+      <div class="hud-group hud-right">
+        <!-- Indicador de Power-up ativo -->
+        <div class="hud-badge powerup-badge" id="hudPowerup" style="display: none;">
+          <span class="hud-icon" id="powerupIcon">🪄</span>
+          <div class="powerup-bar-wrap">
+            <div class="powerup-bar" id="powerupBar"></div>
+          </div>
+        </div>
+        <button id="btnPauseGame" class="hud-btn" aria-label="Pausar Jogo" title="Pausar (P)">⏸️</button>
+      </div>
+    </header>
+
+    <!-- Barra de Vida do Chefe (visível no combate da Fase 5) -->
+    <div id="bossBarContainer" class="boss-health-container" style="display: none;">
+      <div class="boss-title">
+        <span>👑 Rainha das Sombras</span>
+        <span id="bossHealthPercent">100%</span>
+      </div>
+      <div class="boss-bar-bg">
+        <div class="boss-bar-fill" id="bossBarFill"></div>
+      </div>
+    </div>
+
+    <!-- TELA 1: Menu Principal -->
+    <section id="mainMenu" class="screen-overlay active">
+      <div class="menu-decor-stars"></div>
+      <div class="menu-content">
+        <div class="title-crown">👑</div>
+        <h1 class="game-title">PRINCESS</h1>
+        <h2 class="game-subtitle">MAGIC KINGDOM</h2>
+        <p class="game-tagline">Uma jornada mágica pelo reino dos contos de fadas ✨</p>
+
+        <div class="menu-buttons">
+          <button id="btnStartGame" class="royal-btn primary-btn pulse-anim">
+            <span class="btn-icon">▶</span> JOGAR
+          </button>
+          <button id="btnContinueGame" class="royal-btn accent-btn" style="display: none;">
+            <span class="btn-icon">🏰</span> CONTINUAR
+          </button>
+          <button id="btnSelectLevel" class="royal-btn secondary-btn">
+            <span class="btn-icon">🗺️</span> FASES
+          </button>
+          <button id="btnHighScores" class="royal-btn secondary-btn">
+            <span class="btn-icon">🏆</span> RECORDES
+          </button>
+          <button id="btnSettings" class="royal-btn secondary-btn">
+            <span class="btn-icon">⚙️</span> CONFIGURAÇÕES
+          </button>
+          <button id="btnHowToPlay" class="royal-btn secondary-btn">
+            <span class="btn-icon">📖</span> COMO JOGAR
+          </button>
+        </div>
+
+        <div class="menu-footer">
+          <span>Criado com HTML5, CSS3 e JavaScript Puro 💖</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- TELA 2: Seleção de Fases -->
+    <section id="levelSelectMenu" class="screen-overlay" style="display: none;">
+      <div class="modal-box">
+        <h2 class="modal-title">🗺️ SELECIONE A FASE</h2>
+        <div class="level-grid" id="levelGrid">
+          <!-- Cards de fases preenchidos via JS -->
+        </div>
+        <button id="btnBackFromLevels" class="royal-btn secondary-btn modal-close-btn">⬅ VOLTAR AO MENU</button>
+      </div>
+    </section>
+
+    <!-- TELA 3: Recordes e Estatísticas -->
+    <section id="highScoresModal" class="screen-overlay" style="display: none;">
+      <div class="modal-box">
+        <h2 class="modal-title">🏆 RECORDES DO REINO</h2>
+        <div class="stats-card">
+          <div class="stat-row">
+            <span>⭐ Maior Pontuação:</span>
+            <strong id="statHighScore">0</strong>
+          </div>
+          <div class="stat-row">
+            <span>🪙 Total de Moedas:</span>
+            <strong id="statTotalCoins">0</strong>
+          </div>
+          <div class="stat-row">
+            <span>💎 Total de Cristais:</span>
+            <strong id="statTotalCrystals">0</strong>
+          </div>
+          <div class="stat-row">
+            <span>🏰 Fases Desbloqueadas:</span>
+            <strong id="statUnlockedLevels">1 / 5</strong>
+          </div>
+          <div class="stat-row">
+            <span>👑 Rainha das Sombras Derrotada:</span>
+            <strong id="statBossDefeated">Não</strong>
+          </div>
+        </div>
+        <button id="btnBackFromScores" class="royal-btn secondary-btn modal-close-btn">⬅ VOLTAR</button>
+      </div>
+    </section>
+
+    <!-- TELA 4: Configurações -->
+    <section id="settingsModal" class="screen-overlay" style="display: none;">
+      <div class="modal-box">
+        <h2 class="modal-title">⚙️ CONFIGURAÇÕES</h2>
+        <div class="settings-list">
+          <div class="setting-item">
+            <span>🎵 Música de Fundo:</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleMusic" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="setting-item">
+            <span>🔊 Efeitos Sonoros:</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleSfx" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="setting-item">
+            <span>📱 Controles Virtuais na Tela:</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleMobileControls" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+        <div class="danger-zone">
+          <button id="btnResetProgress" class="royal-btn danger-btn">🗑️ Limpar Progresso Salvo</button>
+        </div>
+        <button id="btnBackFromSettings" class="royal-btn secondary-btn modal-close-btn">⬅ SALVAR E VOLTAR</button>
+      </div>
+    </section>
+
+    <!-- TELA 5: Como Jogar -->
+    <section id="howToPlayModal" class="screen-overlay" style="display: none;">
+      <div class="modal-box modal-wide">
+        <h2 class="modal-title">📖 GUIA DA AVENTUREIRA</h2>
+        <div class="tutorial-grid">
+          <div class="tutorial-card">
+            <h3>🎮 Controles de Teclado</h3>
+            <p><strong>A / D</strong> ou <strong>← →</strong>: Andar / Correr</p>
+            <p><strong>W / Espaço / ↑</strong>: Pular</p>
+            <p><strong>X / F / Tecla Enter</strong>: Magia da Varinha</p>
+            <p><strong>P / Esc</strong>: Pausar o Jogo</p>
+          </div>
+          <div class="tutorial-card">
+            <h3>✨ Itens Mágicos</h3>
+            <p>🪙 <strong>Moedas</strong>: Pontos e desbloqueio de estrelas</p>
+            <p>💎 <strong>Cristais</strong>: Grande pontuação mágica</p>
+            <p>💗 <strong>Coração</strong>: Recupera +1 vida</p>
+            <p>🪄 <strong>Varinha</strong>: Dispara projéteis brilhantes</p>
+            <p>⭐ <strong>Estrela</strong>: Invencibilidade e velocidade</p>
+          </div>
+          <div class="tutorial-card">
+            <h3>👿 Inimigos & Combate</h3>
+            <p>Pule sobre as <strong>Bruxas</strong> e <strong>Dragões</strong> para derrotá-los!</p>
+            <p>Use a <strong>Varinha Mágica</strong> para atingir de longe.</p>
+            <p>Ative os <strong>Mastros de Bandeira</strong> para salvar checkpoints!</p>
+          </div>
+        </div>
+        <button id="btnBackFromHowToPlay" class="royal-btn secondary-btn modal-close-btn">⬅ ENTENDI!</button>
+      </div>
+    </section>
+
+    <!-- TELA 6: Menu de Pausa -->
+    <section id="pauseModal" class="screen-overlay" style="display: none;">
+      <div class="modal-box">
+        <h2 class="modal-title">⏸️ JOGO PAUSADO</h2>
+        <p class="modal-subtitle">Descanse um pouco, princesa!</p>
+        <div class="menu-buttons">
+          <button id="btnResumeGame" class="royal-btn primary-btn">▶ CONTINUAR</button>
+          <button id="btnRestartLevel" class="royal-btn secondary-btn">🔄 REINICIAR FASE</button>
+          <button id="btnExitToMenu" class="royal-btn secondary-btn">🏰 MENU PRINCIPAL</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TELA 7: Vitória da Fase -->
+    <section id="levelClearModal" class="screen-overlay" style="display: none;">
+      <div class="modal-box">
+        <div class="celebration-badge">✨ PARABÉNS! ✨</div>
+        <h2 class="modal-title" id="clearLevelTitle">Fase Concluída!</h2>
+        <div class="stars-awarded" id="starsAwarded">
+          <span class="star-icon">⭐</span>
+          <span class="star-icon">⭐</span>
+          <span class="star-icon">⭐</span>
+        </div>
+        <div class="clear-stats">
+          <div class="stat-row">
+            <span>🪙 Moedas Coletadas:</span>
+            <span id="clearCoins">0 / 0</span>
+          </div>
+          <div class="stat-row">
+            <span>💎 Cristais Encontrados:</span>
+            <span id="clearCrystals">0 / 0</span>
+          </div>
+          <div class="stat-row">
+            <span>⭐ Pontuação da Fase:</span>
+            <span id="clearScore">0</span>
+          </div>
+        </div>
+        <div class="menu-buttons">
+          <button id="btnNextLevel" class="royal-btn primary-btn pulse-anim">PRÓXIMA FASE ➡</button>
+          <button id="btnReplayLevel" class="royal-btn secondary-btn">🔄 JOGAR NOVAMENTE</button>
+          <button id="btnMenuFromClear" class="royal-btn secondary-btn">🏰 MENU PRINCIPAL</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TELA 8: Game Over -->
+    <section id="gameOverModal" class="screen-overlay" style="display: none;">
+      <div class="modal-box">
+        <div class="game-over-icon">💔</div>
+        <h2 class="modal-title text-danger">GAME OVER</h2>
+        <p class="modal-subtitle">As forças sombrias venceram desta vez... Mas a princesa não desiste!</p>
+        <div class="clear-stats">
+          <div class="stat-row">
+            <span>Pontuação Alcançada:</span>
+            <strong id="gameOverScore">0</strong>
+          </div>
+        </div>
+        <div class="menu-buttons">
+          <button id="btnRetryLevel" class="royal-btn primary-btn">🔄 TENTAR NOVAMENTE</button>
+          <button id="btnMenuFromGameOver" class="royal-btn secondary-btn">🏰 MENU PRINCIPAL</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TELA 9: Vitória Final do Jogo -->
+    <section id="victoryModal" class="screen-overlay" style="display: none;">
+      <div class="modal-box modal-wide victory-box">
+        <div class="crown-sparkle">👑 ✨ 💖</div>
+        <h1 class="victory-headline">✨ O Reino Encantado foi salvo! ✨</h1>
+        <p class="victory-text">
+          Com sua coragem, graça e magia, a Princesa recuperou a Joia da Luz e baniu a Rainha das Sombras para sempre! O castelo brilha em paz e todas as criaturas comemoram!
+        </p>
+        <div class="victory-stats-box">
+          <div class="victory-stat">
+            <span class="v-label">PONTUAÇÃO FINAL</span>
+            <span class="v-val" id="victoryFinalScore">0</span>
+          </div>
+          <div class="victory-stat">
+            <span class="v-label">TOTAL DE MOEDAS</span>
+            <span class="v-val" id="victoryTotalCoins">0</span>
+          </div>
+          <div class="victory-stat">
+            <span class="v-label">CRISTAIS COLETADOS</span>
+            <span class="v-val" id="victoryTotalCrystals">0</span>
+          </div>
+        </div>
+        <div class="menu-buttons">
+          <button id="btnPlayAgainVictory" class="royal-btn primary-btn pulse-anim">👑 JOGAR NOVAMENTE</button>
+          <button id="btnMenuFromVictory" class="royal-btn secondary-btn">🏰 MENU PRINCIPAL</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTROLES VIRTUAIS MOBILE (ativados automaticamente em touch screens ou configuráveis) -->
+    <div id="touchControls" class="touch-controls-layer" style="display: none;">
+      <!-- D-Pad Direcional Esquerdo -->
+      <div class="touch-dpad">
+        <button id="touchLeft" class="touch-btn dpad-btn" aria-label="Mover para esquerda">◀</button>
+        <button id="touchRight" class="touch-btn dpad-btn" aria-label="Mover para direita">▶</button>
+      </div>
+
+      <!-- Botões de Ação Direitos -->
+      <div class="touch-actions">
+        <button id="touchShoot" class="touch-btn action-btn shoot-btn" aria-label="Atacar com Magia">🪄</button>
+        <button id="touchJump" class="touch-btn action-btn jump-btn" aria-label="Pular">⬆ PULAR</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
