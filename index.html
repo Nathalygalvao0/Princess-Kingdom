@@ -1,16 +1,22 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Princess: Magic Kingdom - Jogo de Plataforma 2D</title>
-  <meta name="description" content="Acompanhe a princesa aventureira através de um reino mágico de contos de fadas para salvar o castelo encantado!">
+  <meta name="description"
+    content="Acompanhe a princesa aventureira através de um reino mágico de contos de fadas para salvar o castelo encantado!">
   <link rel="stylesheet" href="style.css">
+  <link rel="shortcut icon" href="./img/Reino Mágico da Princesa.png" type="image/x-icon">
   <!-- Google Fonts para tipografia fofa e moderna de conto de fadas -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Quicksand:wght@600;700;800&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Quicksand:wght@600;700;800&family=Cinzel:wght@700&display=swap"
+    rel="stylesheet">
 </head>
+
 <body>
   <!-- Container principal do jogo -->
   <div id="gameContainer">
@@ -69,9 +75,10 @@
     <section id="mainMenu" class="screen-overlay active">
       <div class="menu-decor-stars"></div>
       <div class="menu-content">
-        <div class="title-crown">👑</div>
-        <h1 class="game-title">PRINCESS</h1>
-        <h2 class="game-subtitle">MAGIC KINGDOM</h2>
+        <div class="menu-logo-wrapper">
+          <img src="./img/Reino Mágico da Princesa.png" alt="Princess Kingdom" class="menu-logo-img">
+        </div>
+        <h1 class="visually-hidden">Princess: Magic Kingdom</h1>
         <p class="game-tagline">Uma jornada mágica pelo reino dos contos de fadas ✨</p>
 
         <div class="menu-buttons">
@@ -277,7 +284,8 @@
         <div class="crown-sparkle">👑 ✨ 💖</div>
         <h1 class="victory-headline">✨ O Reino Encantado foi salvo! ✨</h1>
         <p class="victory-text">
-          Com sua coragem, graça e magia, a Princesa recuperou a Joia da Luz e baniu a Rainha das Sombras para sempre! O castelo brilha em paz e todas as criaturas comemoram!
+          Com sua coragem, graça e magia, a Princesa recuperou a Joia da Luz e baniu a Rainha das Sombras para sempre! O
+          castelo brilha em paz e todas as criaturas comemoram!
         </p>
         <div class="victory-stats-box">
           <div class="victory-stat">
@@ -318,4 +326,5 @@
 
   <script src="script.js"></script>
 </body>
+
 </html>
