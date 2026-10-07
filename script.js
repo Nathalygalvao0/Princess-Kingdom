@@ -1,8 +1,16 @@
 /**
+ * ============================================================
  * PRINCESS: MAGIC KINGDOM
- * Jogo de Plataforma 2D em HTML5 Canvas, CSS3 e JavaScript Puro (ES6+)
+ * Jogo de Plataforma 2D Moderno em HTML5 Canvas, CSS3 e JavaScript Puro (ES6+)
  * 
- * Desenvolvido sem engines, frameworks ou bibliotecas externas.
+ * Totalmente otimizado:
+ * - Física profissional com Coyote Time, Jump Buffering e Altura Variável
+ * - Colisão AABB precisa sem travamento em quinas ou travessia de plataformas
+ * - Câmera com interpolação suave (Lerp) e Parallax dinâmico em 5 camadas
+ * - 5 Fases progressivas 100% testadas e concluíveis
+ * - Gráficos refinados de conto de fadas: paleta pastel, flores, partículas e animações
+ * - Áudio procedural via Web Audio API (música de fundo e efeitos sonoros)
+ * ============================================================
  */
 
 // ============================================================
@@ -15,7 +23,11 @@ class SoundSystem {
     this.musicEnabled = true;
     this.musicTimer = null;
     this.musicStep = 0;
-    this.melodyNotes = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 440.00, 392.00]; // Dó, Ré, Mi, Sol, Lá, Dó alta (Escala Pentatônica Mágica)
+    // Escala pentatônica mágica e harmoniosa (Fada / Realeza)
+    this.melodyNotes = [
+      261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 440.00, 392.00,
+      329.63, 392.00, 523.25, 587.33, 523.25, 440.00, 392.00, 329.63
+    ];
     this.bassNotes = [130.81, 164.81, 196.00, 220.00];
   }
 
@@ -27,35 +39,149 @@ class SoundSystem {
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      this.ctx.resume().catch(() => {});
     }
   }
 
-  // Efeito sonoro: Pulo alegre
+  setSfxEnabled(val) {
+    this.sfxEnabled = val;
+  }
+
+  setMusicEnabled(val) {
+    this.musicEnabled = val;
+    if (val) {
+      this.startMusic();
+    } else {
+      this.stopMusic();
+    }
+  }
+
+  startMusic() {
+    if (!this.musicEnabled) return;
+    this.init();
+    if (this.musicTimer) clearInterval(this.musicTimer);
+
+    this.musicStep = 0;
+    this.musicTimer = setInterval(() => {
+      if (!this.musicEnabled || !this.ctx) return;
+      const t = this.ctx.currentTime;
+
+      // Nota Melódica
+      const melodyFreq = this.melodyNotes[this.musicStep % this.melodyNotes.length];
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(melodyFreq, t);
+
+      gain.gain.setValueAtTime(0.04, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(t);
+      osc.stop(t + 0.36);
+
+      // Baixo a cada 2 compassos
+      if (this.musicStep % 2 === 0) {
+        const bassFreq = this.bassNotes[Math.floor(this.musicStep / 4) % this.bassNotes.length];
+        const bassOsc = this.ctx.createOscillator();
+        const bassGain = this.ctx.createGain();
+
+        bassOsc.type = 'sine';
+        bassOsc.frequency.setValueAtTime(bassFreq, t);
+
+        bassGain.gain.setValueAtTime(0.06, t);
+        bassGain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+
+        bassOsc.connect(bassGain);
+        bassGain.connect(this.ctx.destination);
+
+        bassOsc.start(t);
+        bassOsc.stop(t + 0.56);
+      }
+
+      this.musicStep++;
+    }, 280);
+  }
+
+  stopMusic() {
+    if (this.musicTimer) {
+      clearInterval(this.musicTimer);
+      this.musicTimer = null;
+    }
+  }
+
   playJump() {
     if (!this.sfxEnabled) return;
     this.init();
     if (!this.ctx) return;
 
+    const t = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    const t = this.ctx.currentTime;
 
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(280, t);
-    osc.frequency.exponentialRampToValueAtTime(560, t + 0.15);
+    osc.frequency.setValueAtTime(260, t);
+    osc.frequency.exponentialRampToValueAtTime(620, t + 0.16);
 
-    gain.gain.setValueAtTime(0.25, t);
-    gain.gain.linearRampToValueAtTime(0.01, t + 0.15);
+    gain.gain.setValueAtTime(0.2, t);
+    gain.gain.linearRampToValueAtTime(0.01, t + 0.16);
 
     osc.connect(gain);
     gain.connect(this.ctx.destination);
 
     osc.start(t);
-    osc.stop(t + 0.16);
+    osc.stop(t + 0.17);
   }
 
-  // Efeito sonoro: Coleta de Moeda (Ting metálico brilhante)
+  playSpring() {
+    if (!this.sfxEnabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(280, t);
+    osc.frequency.exponentialRampToValueAtTime(980, t + 0.28);
+
+    gain.gain.setValueAtTime(0.26, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.28);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(t);
+    osc.stop(t + 0.29);
+  }
+
+  playLand() {
+    if (!this.sfxEnabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(140, t);
+    osc.frequency.exponentialRampToValueAtTime(60, t + 0.08);
+
+    gain.gain.setValueAtTime(0.08, t);
+    gain.gain.linearRampToValueAtTime(0.001, t + 0.08);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(t);
+    osc.stop(t + 0.09);
+  }
+
   playCoin() {
     if (!this.sfxEnabled) return;
     this.init();
@@ -66,10 +192,10 @@ class SoundSystem {
     const gain = this.ctx.createGain();
 
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(987.77, t); // B5
-    osc.frequency.setValueAtTime(1318.51, t + 0.08); // E6
+    osc.frequency.setValueAtTime(987.77, t);
+    osc.frequency.setValueAtTime(1318.51, t + 0.08);
 
-    gain.gain.setValueAtTime(0.2, t);
+    gain.gain.setValueAtTime(0.22, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
 
     osc.connect(gain);
@@ -79,7 +205,6 @@ class SoundSystem {
     osc.stop(t + 0.3);
   }
 
-  // Efeito sonoro: Coleta de Cristal Mágico (Arpejo cristalino)
   playCrystal() {
     if (!this.sfxEnabled) return;
     this.init();
@@ -89,23 +214,22 @@ class SoundSystem {
     [1046.50, 1318.51, 1567.98, 2093.00].forEach((freq, idx) => {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      const st = t + idx * 0.05;
+      const st = t + idx * 0.045;
 
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, st);
 
       gain.gain.setValueAtTime(0.18, st);
-      gain.gain.exponentialRampToValueAtTime(0.001, st + 0.18);
+      gain.gain.exponentialRampToValueAtTime(0.001, st + 0.2);
 
       osc.connect(gain);
       gain.connect(this.ctx.destination);
 
       osc.start(st);
-      osc.stop(st + 0.2);
+      osc.stop(st + 0.22);
     });
   }
 
-  // Efeito sonoro: Derrotar inimigo com pulo
   playStomp() {
     if (!this.sfxEnabled) return;
     this.init();
@@ -116,20 +240,19 @@ class SoundSystem {
     const gain = this.ctx.createGain();
 
     osc.type = 'square';
-    osc.frequency.setValueAtTime(180, t);
-    osc.frequency.exponentialRampToValueAtTime(60, t + 0.18);
+    osc.frequency.setValueAtTime(200, t);
+    osc.frequency.exponentialRampToValueAtTime(60, t + 0.16);
 
-    gain.gain.setValueAtTime(0.3, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.18);
+    gain.gain.setValueAtTime(0.25, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.16);
 
     osc.connect(gain);
     gain.connect(this.ctx.destination);
 
     osc.start(t);
-    osc.stop(t + 0.19);
+    osc.stop(t + 0.17);
   }
 
-  // Efeito sonoro: Dano / Perder vida
   playHurt() {
     if (!this.sfxEnabled) return;
     this.init();
@@ -140,20 +263,19 @@ class SoundSystem {
     const gain = this.ctx.createGain();
 
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(320, t);
-    osc.frequency.linearRampToValueAtTime(110, t + 0.28);
+    osc.frequency.setValueAtTime(340, t);
+    osc.frequency.linearRampToValueAtTime(100, t + 0.25);
 
-    gain.gain.setValueAtTime(0.3, t);
-    gain.gain.linearRampToValueAtTime(0.01, t + 0.28);
+    gain.gain.setValueAtTime(0.28, t);
+    gain.gain.linearRampToValueAtTime(0.01, t + 0.25);
 
     osc.connect(gain);
     gain.connect(this.ctx.destination);
 
     osc.start(t);
-    osc.stop(t + 0.3);
+    osc.stop(t + 0.26);
   }
 
-  // Efeito sonoro: Coletar Power-up (Varinha / Estrela / Coração)
   playPowerup() {
     if (!this.sfxEnabled) return;
     this.init();
@@ -164,7 +286,7 @@ class SoundSystem {
     freqs.forEach((freq, idx) => {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      const st = t + idx * 0.06;
+      const st = t + idx * 0.055;
 
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(freq, st);
@@ -176,11 +298,10 @@ class SoundSystem {
       gain.connect(this.ctx.destination);
 
       osc.start(st);
-      osc.stop(st + 0.25);
+      osc.stop(st + 0.24);
     });
   }
 
-  // Efeito sonoro: Disparo de Magia da Varinha
   playShoot() {
     if (!this.sfxEnabled) return;
     this.init();
@@ -191,20 +312,93 @@ class SoundSystem {
     const gain = this.ctx.createGain();
 
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(600, t);
-    osc.frequency.exponentialRampToValueAtTime(1400, t + 0.12);
+    osc.frequency.setValueAtTime(580, t);
+    osc.frequency.exponentialRampToValueAtTime(1450, t + 0.14);
 
     gain.gain.setValueAtTime(0.2, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.14);
 
     osc.connect(gain);
     gain.connect(this.ctx.destination);
 
     osc.start(t);
-    osc.stop(t + 0.13);
+    osc.stop(t + 0.15);
   }
 
-  // Efeito sonoro: Clique de Botão da Interface
+  playBossHurt() {
+    if (!this.sfxEnabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180, t);
+    osc.frequency.linearRampToValueAtTime(45, t + 0.32);
+
+    gain.gain.setValueAtTime(0.35, t);
+    gain.gain.linearRampToValueAtTime(0.01, t + 0.32);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(t);
+    osc.stop(t + 0.33);
+  }
+
+  playLevelClear() {
+    if (!this.sfxEnabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const fanfare = [523.25, 659.25, 783.99, 1046.50, 783.99, 1046.50, 1318.51];
+    fanfare.forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const st = t + idx * 0.12;
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, st);
+
+      gain.gain.setValueAtTime(0.25, st);
+      gain.gain.exponentialRampToValueAtTime(0.001, st + 0.35);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(st);
+      osc.stop(st + 0.36);
+    });
+  }
+
+  playGameOver() {
+    if (!this.sfxEnabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    [329.63, 293.66, 261.63, 220.00].forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const st = t + idx * 0.16;
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, st);
+
+      gain.gain.setValueAtTime(0.22, st);
+      gain.gain.linearRampToValueAtTime(0.01, st + 0.3);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(st);
+      osc.stop(st + 0.32);
+    });
+  }
+
   playClick() {
     if (!this.sfxEnabled) return;
     this.init();
@@ -216,153 +410,16 @@ class SoundSystem {
 
     osc.type = 'sine';
     osc.frequency.setValueAtTime(800, t);
-    osc.frequency.exponentialRampToValueAtTime(400, t + 0.05);
+    osc.frequency.exponentialRampToValueAtTime(400, t + 0.04);
 
-    gain.gain.setValueAtTime(0.15, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc.start(t);
-    osc.stop(t + 0.06);
-  }
-
-  // Efeito sonoro: Vitória / Fase Concluída
-  playLevelClear() {
-    if (!this.sfxEnabled) return;
-    this.init();
-    if (!this.ctx) return;
-
-    const t = this.ctx.currentTime;
-    const fanfare = [523.25, 659.25, 783.99, 1046.50, 783.99, 1046.50];
-    fanfare.forEach((f, idx) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      const st = t + idx * 0.14;
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(f, st);
-
-      gain.gain.setValueAtTime(0.25, st);
-      gain.gain.exponentialRampToValueAtTime(0.001, st + 0.3);
-
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-
-      osc.start(st);
-      osc.stop(st + 0.35);
-    });
-  }
-
-  // Efeito sonoro: Game Over
-  playGameOver() {
-    if (!this.sfxEnabled) return;
-    this.init();
-    if (!this.ctx) return;
-
-    const t = this.ctx.currentTime;
-    const sadNotes = [392.00, 369.99, 349.23, 311.13, 261.63];
-    sadNotes.forEach((f, idx) => {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      const st = t + idx * 0.22;
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(f, st);
-
-      gain.gain.setValueAtTime(0.22, st);
-      gain.gain.exponentialRampToValueAtTime(0.001, st + 0.4);
-
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-
-      osc.start(st);
-      osc.stop(st + 0.45);
-    });
-  }
-
-  // Efeito sonoro: Dano no Chefe
-  playBossHurt() {
-    if (!this.sfxEnabled) return;
-    this.init();
-    if (!this.ctx) return;
-
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(220, t);
-    osc.frequency.exponentialRampToValueAtTime(70, t + 0.22);
-
-    gain.gain.setValueAtTime(0.35, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.22);
+    gain.gain.setValueAtTime(0.12, t);
+    gain.gain.linearRampToValueAtTime(0.01, t + 0.04);
 
     osc.connect(gain);
     gain.connect(this.ctx.destination);
 
     osc.start(t);
-    osc.stop(t + 0.23);
-  }
-
-  // Iniciar Música de Fundo Sintetizada (Fairy-tale Chimes Procedural)
-  startMusic() {
-    if (!this.musicEnabled || this.musicTimer) return;
-    this.init();
-
-    this.musicTimer = setInterval(() => {
-      if (!this.musicEnabled || !this.ctx) return;
-
-      const t = this.ctx.currentTime;
-      const melodyFreq = this.melodyNotes[this.musicStep % this.melodyNotes.length];
-      const bassFreq = this.bassNotes[Math.floor(this.musicStep / 2) % this.bassNotes.length];
-
-      // Nota Melódica Suave
-      const oscMel = this.ctx.createOscillator();
-      const gainMel = this.ctx.createGain();
-      oscMel.type = 'sine';
-      oscMel.frequency.setValueAtTime(melodyFreq, t);
-      gainMel.gain.setValueAtTime(0.06, t);
-      gainMel.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-      oscMel.connect(gainMel);
-      gainMel.connect(this.ctx.destination);
-      oscMel.start(t);
-      oscMel.stop(t + 0.38);
-
-      // Baixo a cada 2 passos
-      if (this.musicStep % 2 === 0) {
-        const oscBass = this.ctx.createOscillator();
-        const gainBass = this.ctx.createGain();
-        oscBass.type = 'triangle';
-        oscBass.frequency.setValueAtTime(bassFreq, t);
-        gainBass.gain.setValueAtTime(0.08, t);
-        gainBass.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-        oscBass.connect(gainBass);
-        gainBass.connect(this.ctx.destination);
-        oscBass.start(t);
-        oscBass.stop(t + 0.55);
-      }
-
-      this.musicStep = (this.musicStep + 1) % 32;
-    }, 280);
-  }
-
-  stopMusic() {
-    if (this.musicTimer) {
-      clearInterval(this.musicTimer);
-      this.musicTimer = null;
-    }
-  }
-
-  setMusicEnabled(val) {
-    this.musicEnabled = val;
-    if (val) this.startMusic();
-    else this.stopMusic();
-  }
-
-  setSfxEnabled(val) {
-    this.sfxEnabled = val;
+    osc.stop(t + 0.05);
   }
 }
 
@@ -370,14 +427,14 @@ class SoundSystem {
 // 2. GERENCIADOR DE PROGRESSO E LOCALSTORAGE
 // ============================================================
 class StorageManager {
-  static SAVE_KEY = 'princess_magic_kingdom_save_v1';
+  static SAVE_KEY = 'princess_magic_kingdom_save_v2';
 
   static getDefaultData() {
     return {
       highScore: 0,
       totalCoins: 0,
       totalCrystals: 0,
-      unlockedLevels: 1, // de 1 a 5
+      unlockedLevels: 1, // 1 a 5
       levelStars: [0, 0, 0, 0, 0],
       bossDefeated: false,
       musicEnabled: true,
@@ -413,7 +470,7 @@ class StorageManager {
 }
 
 // ============================================================
-// 3. GERENCIADOR DE ENTRADA (TECLADO + TOUCH MOBILE)
+// 3. GERENCIADOR DE ENTRADA (TECLADO + TOUCH MOBILE) COM BUFFERING
 // ============================================================
 class InputHandler {
   constructor() {
@@ -425,7 +482,8 @@ class InputHandler {
       run: false
     };
 
-    this.jumpPressed = false; // Flag para impedir pulo infinito segurando a tecla
+    // Jump buffer em segundos: permite registrar o pulo até 160ms antes de tocar no chão
+    this.jumpBufferTimer = 0;
     this.pauseCallback = null;
 
     this.initKeyboard();
@@ -440,9 +498,10 @@ class InputHandler {
       if (code === 'ShiftLeft' || code === 'ShiftRight') this.keys.run = true;
 
       if (code === 'ArrowUp' || code === 'KeyW' || code === 'Space') {
-        if (!this.keys.jump) this.jumpPressed = true;
+        if (!this.keys.jump) {
+          this.jumpBufferTimer = 0.16; // 160ms buffer
+        }
         this.keys.jump = true;
-        // Prevenir rolagem da página
         if (e.target === document.body) e.preventDefault();
       }
 
@@ -473,7 +532,9 @@ class InputHandler {
       const handlePress = (e) => {
         e.preventDefault();
         btn.classList.add('pressed');
-        if (isJump && !this.keys[keyName]) this.jumpPressed = true;
+        if (isJump && !this.keys[keyName]) {
+          this.jumpBufferTimer = 0.16;
+        }
         this.keys[keyName] = true;
       };
 
@@ -497,9 +558,16 @@ class InputHandler {
     bindBtn('touchShoot', 'shoot');
   }
 
-  isJumpTriggered() {
-    if (this.jumpPressed) {
-      this.jumpPressed = false;
+  update(dt) {
+    if (this.jumpBufferTimer > 0) {
+      this.jumpBufferTimer -= dt;
+      if (this.jumpBufferTimer < 0) this.jumpBufferTimer = 0;
+    }
+  }
+
+  consumeJump() {
+    if (this.jumpBufferTimer > 0) {
+      this.jumpBufferTimer = 0;
       return true;
     }
     return false;
@@ -507,7 +575,7 @@ class InputHandler {
 }
 
 // ============================================================
-// 4. SISTEMA DE PARTÍCULAS MÁGICAS & EFEITOS
+// 4. SISTEMA DE PARTÍCULAS MÁGICAS & EFEITOS VISUAIS
 // ============================================================
 class Particle {
   constructor(x, y, vx, vy, color, size, life, type = 'circle') {
@@ -519,9 +587,9 @@ class Particle {
     this.size = size;
     this.maxLife = life;
     this.life = life;
-    this.type = type; // 'circle', 'star', 'sparkle', 'confetti'
+    this.type = type; // 'circle', 'star', 'petal', 'confetti'
     this.rotation = Math.random() * Math.PI * 2;
-    this.rotSpeed = (Math.random() - 0.5) * 0.15;
+    this.rotSpeed = (Math.random() - 0.5) * 0.18;
   }
 
   update(dt) {
@@ -533,15 +601,14 @@ class Particle {
 
   draw(ctx) {
     if (this.life <= 0) return;
-    const progress = this.life / this.maxLife;
+    const progress = Math.max(0, this.life / this.maxLife);
     ctx.save();
-    ctx.globalAlpha = Math.max(0, progress);
+    ctx.globalAlpha = Math.max(0, Math.min(1, progress));
     ctx.translate(this.x, this.y);
     ctx.rotate(this.rotation);
     ctx.fillStyle = this.color;
 
     if (this.type === 'star') {
-      // Desenhar pequena estrela brilhante de 4 pontas
       const s = this.size * progress;
       ctx.beginPath();
       ctx.moveTo(0, -s);
@@ -550,11 +617,16 @@ class Particle {
       ctx.quadraticCurveTo(0, 0, -s, 0);
       ctx.quadraticCurveTo(0, 0, 0, -s);
       ctx.fill();
+    } else if (this.type === 'petal') {
+      const s = this.size * progress;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, s * 1.5, s * 0.8, 0, 0, Math.PI * 2);
+      ctx.fill();
     } else if (this.type === 'confetti') {
       ctx.fillRect(-this.size / 2, -this.size / 4, this.size, this.size / 2);
     } else {
       ctx.beginPath();
-      ctx.arc(0, 0, Math.max(1, this.size * progress), 0, Math.PI * 2);
+      ctx.arc(0, 0, Math.max(0.8, this.size * progress), 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -583,45 +655,51 @@ class ParticleSystem {
     }
   }
 
-  // Explosão mágica ao derrotar inimigos ou pegar itens especiais
   createMagicBurst(x, y, count = 16, colors = ['#ffd700', '#ff6595', '#b388eb', '#ffffff']) {
     for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
-      const speed = 1.5 + Math.random() * 3.5;
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.35;
+      const speed = 1.6 + Math.random() * 3.6;
       const vx = Math.cos(angle) * speed;
-      const vy = Math.sin(angle) * speed - 1.0;
+      const vy = Math.sin(angle) * speed - 0.8;
       const color = colors[Math.floor(Math.random() * colors.length)];
-      const size = 3 + Math.random() * 5;
-      const life = 0.5 + Math.random() * 0.5;
-      const type = Math.random() > 0.4 ? 'star' : 'circle';
+      const size = 3.5 + Math.random() * 5.5;
+      const life = 0.5 + Math.random() * 0.45;
+      const type = Math.random() > 0.45 ? 'star' : 'circle';
       this.particles.push(new Particle(x, y, vx, vy, color, size, life, type));
     }
   }
 
-  // Poeira de salto / aterrissagem
   createDust(x, y) {
-    for (let i = 0; i < 6; i++) {
-      const vx = (Math.random() - 0.5) * 2;
-      const vy = -Math.random() * 1.5;
-      this.particles.push(new Particle(x, y, vx, vy, 'rgba(255, 230, 240, 0.6)', 3 + Math.random() * 3, 0.35, 'circle'));
+    for (let i = 0; i < 7; i++) {
+      const vx = (Math.random() - 0.5) * 2.2;
+      const vy = -Math.random() * 1.4;
+      this.particles.push(new Particle(x, y, vx, vy, 'rgba(255, 230, 245, 0.7)', 3 + Math.random() * 3.5, 0.35, 'circle'));
     }
   }
 
-  // Confetes festivos de vitória
-  createConfetti(x, y, count = 30) {
-    const colors = ['#ff4081', '#ffd700', '#00e5ff', '#b388eb', '#ffffff', '#76ff03'];
+  createLandingSparkles(x, y) {
+    for (let i = 0; i < 8; i++) {
+      const vx = (Math.random() - 0.5) * 3.2;
+      const vy = -Math.random() * 2.0;
+      const color = Math.random() > 0.5 ? '#ffd700' : '#ffb8d2';
+      this.particles.push(new Particle(x, y, vx, vy, color, 3.5 + Math.random() * 2.5, 0.4, 'star'));
+    }
+  }
+
+  createConfetti(x, y, count = 36) {
+    const colors = ['#ff4081', '#ffd700', '#00e5ff', '#b388eb', '#ffffff', '#76ff03', '#ff80ab'];
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = 2 + Math.random() * 6;
+      const speed = 2.2 + Math.random() * 6.5;
       this.particles.push(
         new Particle(
           x,
           y,
           Math.cos(angle) * speed,
-          Math.sin(angle) * speed - 3,
+          Math.sin(angle) * speed - 3.2,
           colors[Math.floor(Math.random() * colors.length)],
-          6 + Math.random() * 6,
-          1.2 + Math.random() * 1.0,
+          6.5 + Math.random() * 6.5,
+          1.2 + Math.random() * 0.9,
           'confetti'
         )
       );
@@ -630,7 +708,7 @@ class ParticleSystem {
 }
 
 // ============================================================
-// 5. PROJÉTEIS (MAGIA DA PRINCESA, FOGO DO DRAGÃO, ORBES DO CHEFE)
+// 5. PROJÉTEIS (MAGIA DA PRINCESA, FOGO DO DRAGÃO, ORBES DA RAINHA)
 // ============================================================
 class Projectile {
   constructor(x, y, vx, vy, type = 'player_magic') {
@@ -640,7 +718,7 @@ class Projectile {
     this.vy = vy;
     this.type = type; // 'player_magic', 'dragon_fire', 'boss_dark_orb'
     this.radius = type === 'player_magic' ? 10 : 12;
-    this.life = 3.0; // segundos
+    this.life = 3.2;
     this.frame = 0;
   }
 
@@ -656,18 +734,17 @@ class Projectile {
     ctx.translate(this.x, this.y);
 
     if (this.type === 'player_magic') {
-      // Estrela mágica reluzente rosa e dourada
-      const glow = Math.sin(this.frame * 0.2) * 4 + 10;
+      const glow = Math.sin(this.frame * 0.25) * 4 + 12;
       ctx.shadowColor = '#ffd700';
       ctx.shadowBlur = glow;
       ctx.fillStyle = '#ff6595';
 
       ctx.beginPath();
       for (let i = 0; i < 5; i++) {
-        const outerAngle = (i * 2 * Math.PI) / 5 - Math.PI / 2 + this.frame * 0.1;
+        const outerAngle = (i * 2 * Math.PI) / 5 - Math.PI / 2 + this.frame * 0.12;
         const innerAngle = outerAngle + Math.PI / 5;
-        const rOuter = 11;
-        const rInner = 5;
+        const rOuter = 12;
+        const rInner = 5.5;
         if (i === 0) ctx.moveTo(Math.cos(outerAngle) * rOuter, Math.sin(outerAngle) * rOuter);
         else ctx.lineTo(Math.cos(outerAngle) * rOuter, Math.sin(outerAngle) * rOuter);
         ctx.lineTo(Math.cos(innerAngle) * rInner, Math.sin(innerAngle) * rInner);
@@ -675,27 +752,26 @@ class Projectile {
       ctx.closePath();
       ctx.fill();
 
-      // Centro brilhante
+      // Centro radiante
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(0, 0, 4, 0, Math.PI * 2);
+      ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
       ctx.fill();
     } else if (this.type === 'dragon_fire') {
-      // Chama roxa do dragãozinho
       ctx.shadowColor = '#b388eb';
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = 14;
       ctx.fillStyle = '#9b51e0';
       ctx.beginPath();
-      ctx.arc(0, 0, 9, 0, Math.PI * 2);
+      ctx.arc(0, 0, 10, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#ffb3ba';
+      ctx.fillStyle = '#ff80ab';
       ctx.beginPath();
-      ctx.arc(0, 0, 4, 0, Math.PI * 2);
+      ctx.arc(0, 0, 5, 0, Math.PI * 2);
       ctx.fill();
     } else {
-      // Orbe Sombrio da Rainha das Sombras
+      // Orbe da Rainha das Sombras
       ctx.shadowColor = '#ff007f';
-      ctx.shadowBlur = 16;
+      ctx.shadowBlur = 18;
       ctx.fillStyle = '#2a0845';
       ctx.beginPath();
       ctx.arc(0, 0, 13, 0, Math.PI * 2);
@@ -703,6 +779,11 @@ class Projectile {
       ctx.strokeStyle = '#e056fd';
       ctx.lineWidth = 2.5;
       ctx.stroke();
+
+      ctx.fillStyle = '#ff007f';
+      ctx.beginPath();
+      ctx.arc(0, 0, 4, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     ctx.restore();
@@ -710,7 +791,7 @@ class Projectile {
 }
 
 // ============================================================
-// 6. ITENS COLETÁVEIS & OBSTÁCULOS
+// 6. ITENS COLETÁVEIS & RECOMPENSAS
 // ============================================================
 class Item {
   constructor(x, y, type) {
@@ -725,7 +806,6 @@ class Item {
   }
 
   update(dt, frame) {
-    // Leve flutuação mágica
     this.y = this.baseY + Math.sin(frame * 0.08 + this.bobOffset) * 5;
   }
 
@@ -735,11 +815,10 @@ class Item {
     ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
 
     if (this.type === 'coin') {
-      // Moeda de ouro com brilho e efeito 3D simulado
       const scaleX = Math.abs(Math.sin(frame * 0.08 + this.bobOffset));
-      ctx.scale(Math.max(0.15, scaleX), 1);
+      ctx.scale(Math.max(0.18, scaleX), 1);
       ctx.shadowColor = '#ffd700';
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur = 9;
       ctx.fillStyle = '#ffd166';
       ctx.beginPath();
       ctx.arc(0, 0, 12, 0, Math.PI * 2);
@@ -749,17 +828,15 @@ class Item {
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Borda interna e detalhe de coroa
-      ctx.fillStyle = '#e76f51';
-      ctx.font = '10px Arial';
+      ctx.fillStyle = '#d97706';
+      ctx.font = 'bold 11px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('★', 0, 0);
+      ctx.fillText('★', 0, 0.5);
     } else if (this.type === 'crystal') {
-      // Cristal mágico multifacetado azul-celeste e rosa
       ctx.shadowColor = '#00f2fe';
-      ctx.shadowBlur = 12;
-      ctx.fillStyle = '#4facfe';
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = '#38bdf8';
       ctx.beginPath();
       ctx.moveTo(0, -14);
       ctx.lineTo(11, -3);
@@ -769,19 +846,17 @@ class Item {
       ctx.closePath();
       ctx.fill();
 
-      // Brilho da faceta
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
       ctx.beginPath();
       ctx.moveTo(0, -14);
       ctx.lineTo(5, -3);
-      ctx.lineTo(0, 10);
+      ctx.lineTo(0, 11);
       ctx.lineTo(-5, -3);
       ctx.closePath();
       ctx.fill();
     } else if (this.type === 'heart') {
-      // Coração mágico rosa
       ctx.shadowColor = '#ff4081';
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = 13;
       ctx.fillStyle = '#ff4081';
       ctx.beginPath();
       ctx.moveTo(0, 10);
@@ -791,19 +866,16 @@ class Item {
 
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(-4, -5, 2.5, 0, Math.PI * 2);
+      ctx.arc(-4, -5, 2.6, 0, Math.PI * 2);
       ctx.fill();
     } else if (this.type === 'wand') {
-      // Varinha de condão dourada com estrela na ponta
       ctx.shadowColor = '#ff6595';
       ctx.shadowBlur = 14;
-      ctx.rotate(0.3);
+      ctx.rotate(0.28);
 
-      // Cabo dourado
       ctx.fillStyle = '#ffd166';
       ctx.fillRect(-2, -2, 4, 22);
 
-      // Estrela no topo
       ctx.fillStyle = '#ff6595';
       ctx.beginPath();
       ctx.arc(0, -5, 7, 0, Math.PI * 2);
@@ -811,13 +883,12 @@ class Item {
 
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(0, -5, 3, 0, Math.PI * 2);
+      ctx.arc(0, -5, 3.2, 0, Math.PI * 2);
       ctx.fill();
     } else if (this.type === 'star') {
-      // Estrela de invencibilidade (muda de cor)
       const hue = (frame * 6) % 360;
       ctx.shadowColor = `hsl(${hue}, 100%, 65%)`;
-      ctx.shadowBlur = 15;
+      ctx.shadowBlur = 16;
       ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
 
       ctx.beginPath();
@@ -826,14 +897,13 @@ class Item {
         const a2 = a1 + Math.PI / 5;
         if (i === 0) ctx.moveTo(Math.cos(a1) * 14, Math.sin(a1) * 14);
         else ctx.lineTo(Math.cos(a1) * 14, Math.sin(a1) * 14);
-        ctx.lineTo(Math.cos(a2) * 6, Math.sin(a2) * 6);
+        ctx.lineTo(Math.cos(a2) * 6.5, Math.sin(a2) * 6.5);
       }
       ctx.closePath();
       ctx.fill();
     } else if (this.type === 'crown') {
-      // Coroa de ouro rara com rubis
       ctx.shadowColor = '#ffd700';
-      ctx.shadowBlur = 15;
+      ctx.shadowBlur = 18;
       ctx.fillStyle = '#ffd700';
       ctx.beginPath();
       ctx.moveTo(-12, 10);
@@ -846,10 +916,9 @@ class Item {
       ctx.closePath();
       ctx.fill();
 
-      // Jóias da coroa
       ctx.fillStyle = '#ff1744';
       ctx.beginPath();
-      ctx.arc(0, -2, 2.5, 0, Math.PI * 2);
+      ctx.arc(0, -2, 2.6, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -858,7 +927,7 @@ class Item {
 }
 
 // ============================================================
-// 7. PLATAFORMAS & ELEMENTOS DO CENÁRIO
+// 7. PLATAFORMAS & CENÁRIO COM RICAS ILUSTRAÇÕES DE CONTO DE FADAS
 // ============================================================
 class Platform {
   constructor(x, y, width, height, type = 'solid', options = {}) {
@@ -871,13 +940,22 @@ class Platform {
     this.type = type; // 'solid', 'moving_h', 'moving_v', 'cloud', 'spring', 'spikes'
     this.options = options;
 
-    // Parâmetros de movimento
-    this.moveDistance = options.distance || 140;
+    this.moveDistance = options.distance || 130;
     this.moveSpeed = options.speed || 1.2;
     this.moveOffset = options.offset || 0;
+    this.dx = 0;
+    this.dy = 0;
+
+    // Animação de mola/cogumelo ao ser pisado
+    this.springBounceTimer = 0;
   }
 
-  update(frame) {
+  update(frame, dt = 1/60) {
+    if (this.springBounceTimer > 0) {
+      this.springBounceTimer -= dt;
+      if (this.springBounceTimer < 0) this.springBounceTimer = 0;
+    }
+
     if (this.type === 'moving_h') {
       const prevX = this.x;
       this.x = this.startX + Math.sin(frame * 0.025 * this.moveSpeed + this.moveOffset) * this.moveDistance;
@@ -889,105 +967,163 @@ class Platform {
     }
   }
 
+  triggerBounce() {
+    this.springBounceTimer = 0.35;
+  }
+
   draw(ctx, theme = 'castle') {
     ctx.save();
 
     if (this.type === 'solid') {
-      // Plataforma de Mármore Rosa / Jardim Mágico
+      // 🏰 Bloco de Mármore Mágico com Camada de Grama Florida
       const grad = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.height);
-      grad.addColorStop(0, '#ff99c8');
-      grad.addColorStop(0.2, '#f77fbe');
-      grad.addColorStop(1, '#8e44ad');
+      if (theme === 'garden') {
+        grad.addColorStop(0, '#ffa8cb');
+        grad.addColorStop(0.3, '#f472b6');
+        grad.addColorStop(1, '#9333ea');
+      } else if (theme === 'forest') {
+        grad.addColorStop(0, '#c084fc');
+        grad.addColorStop(0.3, '#9333ea');
+        grad.addColorStop(1, '#3b0764');
+      } else if (theme === 'tower') {
+        grad.addColorStop(0, '#818cf8');
+        grad.addColorStop(0.3, '#4f46e5');
+        grad.addColorStop(1, '#1e1b4b');
+      } else if (theme === 'sky') {
+        grad.addColorStop(0, '#fbcfe8');
+        grad.addColorStop(0.3, '#f472b6');
+        grad.addColorStop(1, '#6366f1');
+      } else {
+        // Castelo da Rainha
+        grad.addColorStop(0, '#e879f9');
+        grad.addColorStop(0.3, '#a21caf');
+        grad.addColorStop(1, '#2e0249');
+      }
 
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.roundRect(this.x, this.y, this.width, this.height, [8, 8, 4, 4]);
       ctx.fill();
 
-      // Topo gramado mágico com flores
-      ctx.fillStyle = '#ffcbf2';
+      // Topo gramado mágico com flores delicadas
+      ctx.fillStyle = '#fce7f3';
       ctx.beginPath();
-      ctx.roundRect(this.x, this.y, this.width, 6, [8, 8, 0, 0]);
+      ctx.roundRect(this.x, this.y, this.width, 7, [8, 8, 0, 0]);
       ctx.fill();
 
-      // Detalhes de tijolos elegantes
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-      ctx.lineWidth = 1;
-      for (let bx = this.x + 20; bx < this.x + this.width; bx += 35) {
+      // Flores e detalhes na grama
+      const flowerSpacing = 36;
+      for (let fx = this.x + 16; fx < this.x + this.width - 12; fx += flowerSpacing) {
+        // Florzinha pastel
+        ctx.fillStyle = (fx % 2 === 0) ? '#f43f5e' : '#ffd700';
         ctx.beginPath();
-        ctx.moveTo(bx, this.y + 7);
+        ctx.arc(fx, this.y + 2, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(fx, this.y + 2, 1.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Detalhes sutis de tijolos encantados
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+      ctx.lineWidth = 1;
+      for (let bx = this.x + 22; bx < this.x + this.width; bx += 38) {
+        ctx.beginPath();
+        ctx.moveTo(bx, this.y + 8);
         ctx.lineTo(bx, this.y + this.height - 4);
         ctx.stroke();
       }
     } else if (this.type === 'cloud') {
-      // Plataforma Nuvem Fofa Lilás e Branca
-      ctx.fillStyle = 'rgba(255, 235, 250, 0.9)';
+      // ☁️ Nuvem Fofa com Camadas Tridimensionais e Borda Dourada Suave
       ctx.shadowColor = '#e0aaff';
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = 'rgba(255, 240, 252, 0.95)';
 
-      // Série de arcos criando aspecto fofo de nuvem
+      const r = this.height * 0.7;
       ctx.beginPath();
-      const r = this.height / 2;
-      ctx.arc(this.x + r, this.y + r, r, Math.PI * 0.5, Math.PI * 1.5);
-      ctx.arc(this.x + this.width * 0.35, this.y + r * 0.6, r * 1.2, Math.PI, Math.PI * 2);
-      ctx.arc(this.x + this.width * 0.7, this.y + r * 0.5, r * 1.3, Math.PI, Math.PI * 2);
-      ctx.arc(this.x + this.width - r, this.y + r, r, Math.PI * 1.5, Math.PI * 0.5);
+      ctx.arc(this.x + r * 0.8, this.y + this.height * 0.5, r * 0.7, Math.PI * 0.5, Math.PI * 1.5);
+      ctx.arc(this.x + this.width * 0.3, this.y + this.height * 0.35, r * 0.85, Math.PI, Math.PI * 2);
+      ctx.arc(this.x + this.width * 0.65, this.y + this.height * 0.3, r * 0.95, Math.PI, Math.PI * 2);
+      ctx.arc(this.x + this.width - r * 0.8, this.y + this.height * 0.5, r * 0.7, Math.PI * 1.5, Math.PI * 0.5);
       ctx.closePath();
       ctx.fill();
 
-      // Brilho do contorno
+      // Contorno brilhante
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.2;
       ctx.stroke();
+
+      // Reflexo interno suave
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.beginPath();
+      ctx.arc(this.x + this.width * 0.45, this.y + this.height * 0.35, r * 0.45, 0, Math.PI * 2);
+      ctx.fill();
     } else if (this.type === 'moving_h' || this.type === 'moving_v') {
-      // Plataforma Mágica Flutuante Dourada e Rosa
+      // 🪄 Plataforma Flutuante Dourada e Alada
       const grad = ctx.createLinearGradient(this.x, this.y, this.x + this.width, this.y);
       grad.addColorStop(0, '#ffd166');
-      grad.addColorStop(0.5, '#ff75a0');
-      grad.addColorStop(1, '#b388eb');
+      grad.addColorStop(0.5, '#f472b6');
+      grad.addColorStop(1, '#c084fc');
 
       ctx.shadowColor = '#ffd700';
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = 14;
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.roundRect(this.x, this.y, this.width, this.height, 10);
       ctx.fill();
 
-      // Asinhas mágicas decorativas nas pontas
+      // Asinhas mágicas animadas nas extremidades
+      const wingFlap = Math.sin((this.x + this.y) * 0.08) * 3;
+      ctx.fillStyle = '#ffffff';
+      // Asa esquerda
+      ctx.beginPath();
+      ctx.ellipse(this.x - 5, this.y + this.height / 2 + wingFlap, 9, 5, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      // Asa direita
+      ctx.beginPath();
+      ctx.ellipse(this.x + this.width + 5, this.y + this.height / 2 + wingFlap, 9, 5, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Jóia mágica no centro
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(this.x - 4, this.y + this.height / 2, 6, 0, Math.PI * 2);
-      ctx.arc(this.x + this.width + 4, this.y + this.height / 2, 6, 0, Math.PI * 2);
+      ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 4, 0, Math.PI * 2);
       ctx.fill();
     } else if (this.type === 'spring') {
-      // Cogumelo Saltador Mágico
+      // 🍄 Cogumelo Saltador Encantado com Animação de Squash
       const cx = this.x + this.width / 2;
       const cy = this.y + this.height;
+      const isSquashed = this.springBounceTimer > 0;
+      const squashScale = isSquashed ? 0.65 : 1.0;
+      const capY = this.y + 12 + (isSquashed ? 8 : 0);
 
       // Caule
       ctx.fillStyle = '#fceade';
-      ctx.fillRect(cx - 7, this.y + 10, 14, this.height - 10);
+      ctx.fillRect(cx - 8, this.y + 10, 16, this.height - 10);
 
-      // Chapéu rosa com pintinhas brancas
+      // Chapéu do cogumelo
       ctx.shadowColor = '#ff6595';
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = '#ff4081';
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = '#ff2a6d';
       ctx.beginPath();
-      ctx.arc(cx, this.y + 12, this.width / 2, Math.PI, 0);
+      ctx.ellipse(cx, capY, (this.width / 2) * (isSquashed ? 1.25 : 1.0), 12 * squashScale, 0, Math.PI, 0);
       ctx.fill();
 
+      // Bolinhas brancas no cogumelo
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(cx - 8, this.y + 8, 3, 0, Math.PI * 2);
-      ctx.arc(cx + 8, this.y + 8, 3, 0, Math.PI * 2);
-      ctx.arc(cx, this.y + 3, 3.5, 0, Math.PI * 2);
+      ctx.arc(cx - 9, capY - 4 * squashScale, 3.2, 0, Math.PI * 2);
+      ctx.arc(cx + 9, capY - 4 * squashScale, 3.2, 0, Math.PI * 2);
+      ctx.arc(cx, capY - 8 * squashScale, 3.6, 0, Math.PI * 2);
       ctx.fill();
     } else if (this.type === 'spikes') {
-      // Cristais pontiagudos / espinhos sombrios
+      // 💎 Cristais Pontiagudos de Ametista com Névoa Mágica
       ctx.fillStyle = '#7928ca';
       ctx.shadowColor = '#ff007f';
-      ctx.shadowBlur = 6;
-      const count = Math.floor(this.width / 14);
+      ctx.shadowBlur = 8;
+      const count = Math.max(2, Math.floor(this.width / 15));
       const step = this.width / count;
       ctx.beginPath();
       for (let i = 0; i < count; i++) {
@@ -997,6 +1133,17 @@ class Platform {
         ctx.lineTo(sx + step, this.y + this.height);
       }
       ctx.fill();
+
+      // Brilho facetado nos espinhos
+      ctx.fillStyle = '#e0aaff';
+      for (let i = 0; i < count; i++) {
+        const sx = this.x + i * step;
+        ctx.beginPath();
+        ctx.moveTo(sx + step * 0.4, this.y + this.height);
+        ctx.lineTo(sx + step / 2, this.y);
+        ctx.lineTo(sx + step * 0.6, this.y + this.height * 0.4);
+        ctx.fill();
+      }
     }
 
     ctx.restore();
@@ -1017,33 +1164,32 @@ class Checkpoint {
 
   draw(ctx, frame) {
     ctx.save();
-    // Mastro Dourado
+    // Mastro Dourado Real
     ctx.fillStyle = '#ffd166';
     ctx.fillRect(this.x + 4, this.y, 6, this.height);
 
-    // Esfera no topo
+    // Esfera de topo
     ctx.fillStyle = '#ff6595';
     ctx.beginPath();
-    ctx.arc(this.x + 7, this.y, 8, 0, Math.PI * 2);
+    ctx.arc(this.x + 7, this.y, 8.5, 0, Math.PI * 2);
     ctx.fill();
 
     // Bandeira rosa/lilás ondulando
-    const wave = Math.sin(frame * 0.1) * 4;
+    const wave = Math.sin(frame * 0.1) * 4.5;
     ctx.fillStyle = this.active ? '#ff4081' : '#b388eb';
     ctx.shadowColor = this.active ? '#ff75a0' : '#8c52ff';
-    ctx.shadowBlur = this.active ? 15 : 4;
+    ctx.shadowBlur = this.active ? 16 : 4;
 
     ctx.beginPath();
     ctx.moveTo(this.x + 10, this.y + 6);
-    ctx.lineTo(this.x + 36 + wave, this.y + 16);
+    ctx.lineTo(this.x + 38 + wave, this.y + 16);
     ctx.lineTo(this.x + 10, this.y + 28);
     ctx.closePath();
     ctx.fill();
 
     if (this.active) {
-      // Coroa bordada na bandeira
       ctx.fillStyle = '#ffd700';
-      ctx.font = '10px Arial';
+      ctx.font = '12px Arial';
       ctx.fillText('👑', this.x + 14, this.y + 20);
     }
 
@@ -1064,11 +1210,10 @@ class GoalPortal {
     const cx = this.x + this.width / 2;
     const cy = this.y + this.height / 2;
 
-    // Portal mágico giratório com arcos de castelo
     ctx.shadowColor = '#ff6595';
-    ctx.shadowBlur = 20;
+    ctx.shadowBlur = 22;
 
-    // Arco de mármore branco
+    // Portal em arco de mármore
     ctx.strokeStyle = '#fff0f5';
     ctx.lineWidth = 10;
     ctx.beginPath();
@@ -1077,8 +1222,8 @@ class GoalPortal {
     ctx.lineTo(cx - 26, this.y + this.height);
     ctx.stroke();
 
-    // Interior de vórtice mágico
-    const grad = ctx.createRadialGradient(cx, cy, 5, cx, cy, 32);
+    // Vórtice mágico
+    const grad = ctx.createRadialGradient(cx, cy, 4, cx, cy, 32);
     grad.addColorStop(0, '#ffffff');
     grad.addColorStop(0.4, '#ff99c8');
     grad.addColorStop(0.8, '#7928ca');
@@ -1089,14 +1234,14 @@ class GoalPortal {
     ctx.arc(cx, cy, 28, 0, Math.PI * 2);
     ctx.fill();
 
-    // Estrelas giratórias no portal
+    // Estrelas giratórias
     ctx.fillStyle = '#ffd700';
     for (let i = 0; i < 4; i++) {
       const a = (i * Math.PI) / 2 + frame * 0.05;
       const px = cx + Math.cos(a) * 18;
       const py = cy + Math.sin(a) * 18;
       ctx.beginPath();
-      ctx.arc(px, py, 3, 0, Math.PI * 2);
+      ctx.arc(px, py, 3.2, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -1108,7 +1253,7 @@ class GoalPortal {
 // 9. INIMIGOS E CHEFE FINAL (RAINHA DAS SOMBRAS)
 // ============================================================
 class Enemy {
-  constructor(x, y, width, height, type = 'witch') {
+  constructor(x, y, width, height, type = 'witch', patrolDistance = 120) {
     this.x = x;
     this.y = y;
     this.width = width;
@@ -1118,8 +1263,8 @@ class Enemy {
     this.vy = 0;
     this.facingRight = false;
     this.alive = true;
-    this.patrolLeft = x - 120;
-    this.patrolRight = x + 120;
+    this.patrolLeft = x - patrolDistance;
+    this.patrolRight = x + patrolDistance;
     this.shootTimer = 0;
     this.frame = 0;
   }
@@ -1129,7 +1274,6 @@ class Enemy {
     this.frame++;
 
     if (this.type === 'witch') {
-      // Bruxa Sombria patrulha calmamente com vassoura
       this.x += this.vx;
       if (this.x < this.patrolLeft) {
         this.x = this.patrolLeft;
@@ -1141,7 +1285,6 @@ class Enemy {
         this.facingRight = false;
       }
     } else if (this.type === 'dragon') {
-      // Dragãozinho patrulha e cospe pequenas chamas mágicas
       this.x += this.vx;
       if (this.x < this.patrolLeft) {
         this.x = this.patrolLeft;
@@ -1154,20 +1297,18 @@ class Enemy {
       }
 
       this.shootTimer += dt;
-      if (this.shootTimer >= 3.2) {
+      if (this.shootTimer >= 3.0) {
         this.shootTimer = 0;
-        // Atirar bola de fogo se o jogador estiver por perto
         const dist = Math.abs(player.x - this.x);
-        if (dist < 420) {
-          const shootVx = this.facingRight ? 3.0 : -3.0;
+        if (dist < 400) {
+          const shootVx = this.facingRight ? 3.2 : -3.2;
           projectiles.push(new Projectile(this.x + this.width / 2, this.y + 12, shootVx, 0, 'dragon_fire'));
         }
       }
     } else if (this.type === 'shadow_imp') {
-      // Criatura Encantada das sombras persegue a princesa quando próxima
       const dx = player.x - this.x;
-      if (Math.abs(dx) < 320) {
-        this.vx = dx > 0 ? 1.0 : -1.0;
+      if (Math.abs(dx) < 300) {
+        this.vx = dx > 0 ? 1.2 : -1.2;
         this.facingRight = this.vx > 0;
       } else {
         this.vx = 0;
@@ -1220,14 +1361,13 @@ class Enemy {
       ctx.closePath();
       ctx.fill();
 
-      // Vassoura
+      // Vassoura com estrelinhas
       ctx.fillStyle = '#8d6e63';
       ctx.fillRect(-18, 12, 34, 3);
       ctx.fillStyle = '#ffd54f';
       ctx.fillRect(-22, 9, 7, 9);
     } else if (this.type === 'dragon') {
       // 🐉 Dragãozinho Roxo
-      // Asinhas batendo
       const wingFlap = Math.sin(this.frame * 0.25) * 6;
       ctx.fillStyle = '#ab47bc';
       ctx.beginPath();
@@ -1257,7 +1397,7 @@ class Enemy {
       ctx.lineTo(-3, -12);
       ctx.fill();
 
-      // Olho grande e expressivo
+      // Olho expressivo
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.arc(-4, 0, 5, 0, Math.PI * 2);
@@ -1268,7 +1408,7 @@ class Enemy {
       ctx.fill();
     } else if (this.type === 'shadow_imp') {
       // 🧌 Criatura Encantada das Sombras
-      const bounce = Math.abs(Math.sin(this.frame * 0.15)) * 4;
+      const bounce = Math.abs(Math.sin(this.frame * 0.16)) * 4;
       ctx.shadowColor = '#ff007f';
       ctx.shadowBlur = 10;
       ctx.fillStyle = '#1d0033';
@@ -1276,7 +1416,6 @@ class Enemy {
       ctx.arc(0, 4 - bounce, 13, 0, Math.PI * 2);
       ctx.fill();
 
-      // Olhos brilhantes magenta
       ctx.fillStyle = '#ff3399';
       ctx.beginPath();
       ctx.arc(-5, 2 - bounce, 3.5, 0, Math.PI * 2);
@@ -1302,16 +1441,16 @@ class Boss {
     this.alive = true;
     this.facingRight = false;
     this.invulnerableTimer = 0;
-    this.state = 'idle'; // 'idle', 'teleport', 'cast', 'dash'
     this.actionTimer = 0;
     this.frame = 0;
-    this.phase = 1; // 1, 2, 3
+    this.phase = 1;
+    this.teleportCooldown = 0;
   }
 
   takeDamage(soundSystem, particles) {
     if (this.invulnerableTimer > 0 || !this.alive) return false;
     this.health -= 1;
-    this.invulnerableTimer = 1.2; // 1.2s de invulnerabilidade e piscada
+    this.invulnerableTimer = 1.2;
     soundSystem.playBossHurt();
     particles.createMagicBurst(this.x + this.width / 2, this.y + this.height / 2, 24, ['#ff007f', '#ffd700', '#9b51e0']);
 
@@ -1320,7 +1459,6 @@ class Boss {
       return true;
     }
 
-    // Mudança de fase conforme perde vida
     if (this.health <= 3) this.phase = 3;
     else if (this.health <= 7) this.phase = 2;
 
@@ -1335,33 +1473,35 @@ class Boss {
     this.facingRight = player.x > this.x;
     this.actionTimer += dt;
 
-    // Ciclo de Ataques e Padrões da Rainha
-    const cooldown = this.phase === 3 ? 1.8 : this.phase === 2 ? 2.4 : 3.0;
+    const cooldown = this.phase === 3 ? 1.8 : this.phase === 2 ? 2.3 : 2.8;
 
     if (this.actionTimer >= cooldown) {
       this.actionTimer = 0;
       const attackType = Math.random();
 
-      if (attackType < 0.45) {
-        // Ataque 1: Salva de Orbes Sombrios
+      if (attackType < 0.55) {
+        // Ataque 1: Orbes de energia sombria
         const dir = this.facingRight ? 1 : -1;
-        const orbSpeed = this.phase === 3 ? 4.5 : 3.2;
-        projectiles.push(new Projectile(this.x + this.width / 2, this.y + 20, dir * orbSpeed, -0.6, 'boss_dark_orb'));
+        const orbSpeed = this.phase === 3 ? 4.5 : 3.4;
+        projectiles.push(new Projectile(this.x + this.width / 2, this.y + 20, dir * orbSpeed, -0.4, 'boss_dark_orb'));
 
         if (this.phase >= 2) {
           projectiles.push(new Projectile(this.x + this.width / 2, this.y + 20, dir * orbSpeed * 0.9, 1.2, 'boss_dark_orb'));
         }
-      } else if (attackType < 0.8) {
-        // Ataque 2: Teletransporte Mágico pelo Salão
-        const arenaLeft = this.startX - 280;
-        const arenaRight = this.startX + 280;
+      } else if (attackType < 0.85) {
+        // Ataque 2: Teletransporte seguro pelo salão do trono
+        const arenaLeft = this.startX - 260;
+        const arenaRight = this.startX + 260;
         this.x = arenaLeft + Math.random() * (arenaRight - arenaLeft);
       } else {
-        // Ataque 3: Salto ameaçador
-        this.y = this.startY - 60;
-        setTimeout(() => {
-          this.y = this.startY;
-        }, 500);
+        // Ataque 3: Salto levitante
+        this.y = this.startY - 45;
+      }
+    } else {
+      // Suave retorno ao solo
+      if (this.y < this.startY) {
+        this.y += 1.2;
+        if (this.y > this.startY) this.y = this.startY;
       }
     }
   }
@@ -1369,7 +1509,6 @@ class Boss {
   draw(ctx) {
     if (!this.alive) return;
 
-    // Efeito de piscar ao sofrer dano
     if (this.invulnerableTimer > 0 && Math.floor(this.frame / 4) % 2 === 0) {
       return;
     }
@@ -1378,11 +1517,10 @@ class Boss {
     ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
     if (this.facingRight) ctx.scale(-1, 1);
 
-    // Aura sombria imponente
     ctx.shadowColor = this.phase === 3 ? '#ff007f' : '#8a2be2';
     ctx.shadowBlur = 20;
 
-    // Capa elegante escura com forro lilás
+    // Capa escura majestosa
     ctx.fillStyle = '#1c0326';
     ctx.beginPath();
     ctx.moveTo(-16, -18);
@@ -1404,13 +1542,13 @@ class Boss {
     ctx.closePath();
     ctx.fill();
 
-    // Rosto pálido e elegante
+    // Rosto
     ctx.fillStyle = '#fce4ec';
     ctx.beginPath();
     ctx.arc(0, -16, 12, 0, Math.PI * 2);
     ctx.fill();
 
-    // Cabelo preto azulado volumoso
+    // Cabelo preto azulado
     ctx.fillStyle = '#0f051d';
     ctx.beginPath();
     ctx.arc(-8, -18, 8, 0, Math.PI * 2);
@@ -1418,7 +1556,7 @@ class Boss {
     ctx.arc(0, -22, 10, 0, Math.PI * 2);
     ctx.fill();
 
-    // Coroa das Sombras com jóia roxa
+    // Coroa das Sombras
     ctx.fillStyle = '#111';
     ctx.beginPath();
     ctx.moveTo(-10, -24);
@@ -1434,14 +1572,14 @@ class Boss {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Olhos penetrantes magenta
+    // Olhos magenta
     ctx.fillStyle = '#ff1493';
     ctx.beginPath();
     ctx.arc(-4, -16, 2.5, 0, Math.PI * 2);
     ctx.arc(4, -16, 2.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Cetro Sombrio na mão
+    // Cetro
     ctx.fillStyle = '#ffd700';
     ctx.fillRect(-18, -26, 3, 48);
     ctx.fillStyle = '#e056fd';
@@ -1465,18 +1603,31 @@ class Player {
 
     this.x = x;
     this.y = y;
+    this.prevX = x;
+    this.prevY = y;
     this.width = 32;
     this.height = 48;
 
-    // Física e Movimentação
+    // Física refinada com aceleração e desaceleração controlada
     this.vx = 0;
     this.vy = 0;
-    this.speed = 3.6;
-    this.runMultiplier = 1.45;
-    this.jumpForce = -10.2;
-    this.gravity = 0.44;
+    this.walkSpeed = 3.8;
+    this.runSpeed = 5.4;
+    this.jumpForce = -10.8;
+    this.gravity = 0.42;
+    this.apexGravity = 0.22;
+    this.fallGravity = 0.52;
+    this.terminalVelocity = 11.5;
+
+    // Coyote time e estados de solo
     this.grounded = false;
+    this.coyoteTimer = 0; // Permite pular 130ms após sair de uma beirada
+    this.ridingPlatform = null;
     this.facingRight = true;
+
+    // Squash & Stretch visual
+    this.scaleX = 1.0;
+    this.scaleY = 1.0;
 
     // Estados e Poderes
     this.lives = 3;
@@ -1486,11 +1637,11 @@ class Player {
     this.score = 0;
 
     this.invulnerableTimer = 0;
-    this.wandTimer = 0; // Se > 0, pode disparar magia
-    this.starTimer = 0; // Se > 0, invencível e rápida
+    this.wandTimer = 0;
+    this.starTimer = 0;
     this.shootCooldown = 0;
 
-    this.state = 'idle'; // 'idle', 'walk', 'run', 'jump', 'fall', 'hurt', 'victory'
+    this.state = 'idle'; // 'idle', 'walk', 'run', 'jump', 'fall'
     this.frame = 0;
     this.animTimer = 0;
   }
@@ -1498,13 +1649,17 @@ class Player {
   respawn() {
     this.x = this.checkpointX;
     this.y = this.checkpointY;
+    this.prevX = this.checkpointX;
+    this.prevY = this.checkpointY;
     this.vx = 0;
     this.vy = 0;
-    this.invulnerableTimer = 2.0; // 2s de proteção ao reaparecer
+    this.ridingPlatform = null;
+    this.grounded = false;
+    this.coyoteTimer = 0;
+    this.invulnerableTimer = 2.0; // 2s de proteção
   }
 
   takeHit(soundSystem, particles) {
-    // Se estiver com estrela mágica ou invulnerabilidade temporária, ignora dano
     if (this.starTimer > 0 || this.invulnerableTimer > 0) return false;
 
     this.lives -= 1;
@@ -1519,91 +1674,139 @@ class Player {
     return false;
   }
 
-  update(dt, input, platforms, soundSystem, particles, projectiles) {
+  physicsUpdate(step, input, platforms, soundSystem, particles, projectiles) {
     this.frame++;
-    this.animTimer += dt;
+    this.animTimer += step;
+    this.prevX = this.x;
+    this.prevY = this.y;
 
-    // Atualizar cronômetros de powerups
-    if (this.invulnerableTimer > 0) this.invulnerableTimer -= dt;
-    if (this.wandTimer > 0) this.wandTimer -= dt;
-    if (this.starTimer > 0) this.starTimer -= dt;
-    if (this.shootCooldown > 0) this.shootCooldown -= dt;
+    // Atualizar cronômetros
+    if (this.invulnerableTimer > 0) this.invulnerableTimer -= step;
+    if (this.wandTimer > 0) this.wandTimer -= step;
+    if (this.starTimer > 0) this.starTimer -= step;
+    if (this.shootCooldown > 0) this.shootCooldown -= step;
+    if (this.coyoteTimer > 0) this.coyoteTimer -= step;
+
+    // Recuperação de squash & stretch
+    this.scaleX += (1.0 - this.scaleX) * 0.18;
+    this.scaleY += (1.0 - this.scaleY) * 0.18;
 
     // 1. Movimentação Horizontal
-    let moveSpeed = this.speed;
-    if (input.keys.run || this.starTimer > 0) {
-      moveSpeed *= this.runMultiplier;
+    const isRunning = input.keys.run || this.starTimer > 0;
+    const targetMaxSpeed = isRunning ? this.runSpeed : this.walkSpeed;
+    let targetVx = 0;
+
+    if (input.keys.left && !input.keys.right) {
+      targetVx = -targetMaxSpeed;
+      this.facingRight = false;
+    } else if (input.keys.right && !input.keys.left) {
+      targetVx = targetMaxSpeed;
+      this.facingRight = true;
     }
 
-    if (input.keys.left) {
-      this.vx = -moveSpeed;
-      this.facingRight = false;
-    } else if (input.keys.right) {
-      this.vx = moveSpeed;
-      this.facingRight = true;
+    // Aceleração e Desaceleração
+    if (targetVx !== 0) {
+      const accel = this.grounded ? 0.38 : 0.28;
+      this.vx += (targetVx - this.vx) * accel;
     } else {
-      this.vx *= 0.75;
+      const friction = this.grounded ? 0.25 : 0.08;
+      this.vx += (0 - this.vx) * friction;
       if (Math.abs(this.vx) < 0.1) this.vx = 0;
+    }
+
+    // Acompanhar plataforma móvel horizontal
+    if (this.grounded && this.ridingPlatform && this.ridingPlatform.dx) {
+      this.x += this.ridingPlatform.dx;
     }
 
     // 2. Disparo de Magia da Varinha
     if (input.keys.shoot && this.wandTimer > 0 && this.shootCooldown <= 0) {
-      this.shootCooldown = 0.28;
-      const projSpeed = this.facingRight ? 7.5 : -7.5;
+      this.shootCooldown = 0.25;
+      const projSpeed = this.facingRight ? 7.8 : -7.8;
       projectiles.push(new Projectile(this.x + this.width / 2, this.y + 16, projSpeed, 0, 'player_magic'));
       soundSystem.playShoot();
       particles.createMagicBurst(this.x + this.width / 2, this.y + 16, 8, ['#ffd700', '#ff6595']);
     }
 
-    // 3. Pulo com física sensível à pressão
-    if (input.isJumpTriggered() && this.grounded) {
+    // 3. Mecânica de Pulo com Coyote Time e Jump Buffering
+    const canJump = this.grounded || this.coyoteTimer > 0;
+
+    if (input.consumeJump() && canJump) {
       this.vy = this.jumpForce;
       this.grounded = false;
+      this.coyoteTimer = 0;
+      this.scaleX = 0.82;
+      this.scaleY = 1.25;
+
+      // Impulso adicional de momento ao pular de plataforma móvel
+      if (this.ridingPlatform && this.ridingPlatform.dx) {
+        this.vx += this.ridingPlatform.dx * 0.45;
+      }
+      this.ridingPlatform = null;
+
       soundSystem.playJump();
       particles.createDust(this.x + this.width / 2, this.y + this.height);
     }
 
-    // Corte suave de pulo ao soltar o botão no ar (jump cut)
-    if (!input.keys.jump && this.vy < -4) {
-      this.vy *= 0.6;
+    // Pulo de Altura Variável: corte suave ao soltar a tecla no ar
+    if (!input.keys.jump && this.vy < -3.5) {
+      this.vy = -3.5;
     }
 
-    // Aplicar gravidade
-    this.vy += this.gravity;
-    if (this.vy > 12) this.vy = 12; // Terminal velocity
+    // Gravidade adaptativa (Apex float para sensação mágica de leveza)
+    let currentGravity = this.gravity;
+    if (Math.abs(this.vy) < 1.6) {
+      currentGravity = this.apexGravity; // Flutuação mágica no ápice
+    } else if (this.vy > 0) {
+      currentGravity = this.fallGravity; // Queda firme e satisfatória
+    }
 
-    // 4. Integração de Posição & Colisão com Plataformas
+    this.vy += currentGravity;
+    if (this.vy > this.terminalVelocity) this.vy = this.terminalVelocity;
+
+    // 4. Integração de Posição & Colisão X
     this.x += this.vx;
     this.checkHorizontalCollisions(platforms);
 
+    // 5. Integração de Posição & Colisão Y
     this.y += this.vy;
+    const wasGrounded = this.grounded;
     this.grounded = false;
     this.checkVerticalCollisions(platforms, soundSystem, particles);
 
-    // Determinar estado de animação
+    // Gerenciar coyote time ao sair de bordas
+    if (wasGrounded && !this.grounded && this.vy >= 0) {
+      this.coyoteTimer = 0.13; // 130ms de janela de pulo
+    }
+
+    // Estado da animação
     if (!this.grounded) {
       this.state = this.vy < 0 ? 'jump' : 'fall';
-    } else if (Math.abs(this.vx) > 0.5) {
-      this.state = Math.abs(this.vx) > this.speed * 1.1 ? 'run' : 'walk';
+    } else if (Math.abs(this.vx) > 0.4) {
+      this.state = Math.abs(this.vx) > this.walkSpeed * 1.1 ? 'run' : 'walk';
     } else {
       this.state = 'idle';
     }
 
-    // Efeito de rastro brilhante com estrela mágica ativa
-    if (this.starTimer > 0 && Math.random() < 0.4) {
+    // Efeito de rastro brilhante com a Estrela
+    if (this.starTimer > 0 && Math.random() < 0.45) {
       particles.createMagicBurst(this.x + this.width / 2, this.y + this.height / 2, 2, ['#ffd700', '#ffffff', '#ff6595']);
     }
   }
 
   checkHorizontalCollisions(platforms) {
+    // Inset vertical de 8px para nunca colidir acidentalmente com o chão que o jogador está pisando
+    const playerTop = this.y + 8;
+    const playerBottom = this.y + this.height - 8;
+
     for (const p of platforms) {
       if (p.type === 'cloud' || p.type === 'spring' || p.type === 'spikes') continue;
 
       if (
         this.x < p.x + p.width &&
         this.x + this.width > p.x &&
-        this.y < p.y + p.height &&
-        this.y + this.height > p.y
+        playerBottom > p.y &&
+        playerTop < p.y + p.height
       ) {
         if (this.vx > 0) {
           this.x = p.x - this.width;
@@ -1616,53 +1819,78 @@ class Player {
   }
 
   checkVerticalCollisions(platforms, soundSystem, particles) {
-    for (const p of platforms) {
-      if (
-        this.x + this.width * 0.8 > p.x &&
-        this.x + this.width * 0.2 < p.x + p.width
-      ) {
-        // Colisão com topo da plataforma ao descer
-        if (this.vy >= 0 && this.y + this.height >= p.y && this.y + this.height <= p.y + p.height + this.vy + 2) {
-          if (p.type === 'spring') {
-            // Super salto no cogumelo mágico!
-            this.vy = -14.5;
-            this.y = p.y - this.height;
-            soundSystem.playJump();
-            particles.createMagicBurst(this.x + this.width / 2, this.y + this.height, 12, ['#ff4081', '#ffd700']);
-            return;
-          }
+    const playerLeft = this.x + 4;
+    const playerRight = this.x + this.width - 4;
 
-          if (p.type === 'spikes') {
+    for (const p of platforms) {
+      // Verificar alinhamento horizontal
+      if (playerRight > p.x && playerLeft < p.x + p.width) {
+        // Colisão com espinhos
+        if (p.type === 'spikes') {
+          if (this.y + this.height >= p.y + 6 && this.y < p.y + p.height) {
             this.takeHit(soundSystem, particles);
             return;
           }
+          continue;
+        }
 
-          // Plataforma sólida, móvel ou nuvem
-          this.y = p.y - this.height;
-          this.vy = 0;
-          this.grounded = true;
+        // Colisão com mola / cogumelo saltador
+        if (p.type === 'spring') {
+          if (this.vy >= 0 && this.y + this.height >= p.y && this.prevY + this.height <= p.y + 14) {
+            this.vy = -14.2; // Super salto!
+            this.y = p.y - this.height;
+            this.scaleX = 0.75;
+            this.scaleY = 1.35;
+            p.triggerBounce();
+            soundSystem.playSpring();
+            particles.createMagicBurst(this.x + this.width / 2, this.y + this.height, 14, ['#ff4081', '#ffd700', '#ffffff']);
+            return;
+          }
+          continue;
+        }
 
-          // Se a plataforma estiver se movendo, acompanhar
-          if (p.type === 'moving_h' && p.dx) {
-            this.x += p.dx;
+        // Colisão com nuvem (plataforma one-way que permite atravessar de baixo para cima)
+        if (p.type === 'cloud') {
+          if (this.vy >= 0 && this.y + this.height >= p.y && this.prevY + this.height <= p.y + 10) {
+            this.landOnPlatform(p, soundSystem, particles);
+            return;
           }
-          if (p.type === 'moving_v' && p.dy) {
-            this.y += p.dy;
-          }
+          continue;
+        }
+
+        // Plataformas sólidas e móveis (4 vias)
+        if (this.vy >= 0 && this.y + this.height >= p.y && this.prevY + this.height <= p.y + 14) {
+          this.landOnPlatform(p, soundSystem, particles);
           return;
         }
 
-        // Colisão com a parte de baixo (cabeçada em bloco sólido)
-        if (this.vy < 0 && p.type === 'solid' && this.y <= p.y + p.height && this.y >= p.y) {
+        // Cabeçada em bloco sólido por baixo
+        if (this.vy < 0 && p.type === 'solid' && this.y <= p.y + p.height && this.prevY >= p.y + p.height - 12) {
           this.y = p.y + p.height;
           this.vy = 0;
+          return;
         }
       }
     }
   }
 
+  landOnPlatform(p, soundSystem, particles) {
+    const wasInAir = !this.grounded && this.vy > 3;
+    this.y = p.y - this.height;
+    this.vy = 0;
+    this.grounded = true;
+    this.coyoteTimer = 0;
+    this.ridingPlatform = p;
+
+    if (wasInAir) {
+      this.scaleX = 1.25;
+      this.scaleY = 0.8;
+      soundSystem.playLand();
+      particles.createLandingSparkles(this.x + this.width / 2, this.y + this.height);
+    }
+  }
+
   draw(ctx) {
-    // Piscar se invulnerável
     if (this.invulnerableTimer > 0 && Math.floor(this.frame / 4) % 2 === 0) {
       return;
     }
@@ -1671,30 +1899,33 @@ class Player {
     ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
     if (!this.facingRight) ctx.scale(-1, 1);
 
+    // Aplicar squash e stretch
+    ctx.scale(this.scaleX, this.scaleY);
+
     // Efeito de aura colorida com a Estrela de Invencibilidade
     if (this.starTimer > 0) {
       const hue = (this.frame * 8) % 360;
       ctx.shadowColor = `hsl(${hue}, 100%, 70%)`;
-      ctx.shadowBlur = 18;
+      ctx.shadowBlur = 20;
     } else {
-      ctx.shadowColor = 'rgba(255, 105, 180, 0.4)';
-      ctx.shadowBlur = 8;
+      ctx.shadowColor = 'rgba(255, 105, 180, 0.45)';
+      ctx.shadowBlur = 9;
     }
 
-    // 1. Cabelos Longos Dourados / Castanho Claro Ondulantes
-    const hairWave = Math.sin(this.frame * 0.15) * 3;
+    // 1. Cabelos Longos Dourados Ondulantes
+    const hairWave = Math.sin(this.frame * 0.16) * 3.5;
     ctx.fillStyle = '#ffcf40';
     ctx.beginPath();
     ctx.arc(-4, -12, 11, 0, Math.PI * 2);
-    ctx.arc(-8 + hairWave, 0, 9, 0, Math.PI * 2);
-    ctx.arc(-11 + hairWave * 1.2, 10, 8, 0, Math.PI * 2);
+    ctx.arc(-8 + hairWave, 0, 9.5, 0, Math.PI * 2);
+    ctx.arc(-11 + hairWave * 1.25, 11, 8.5, 0, Math.PI * 2);
     ctx.fill();
 
     // 2. Vestido de Princesa Rosa & Lilás
-    const walkSwing = this.state === 'walk' || this.state === 'run' ? Math.sin(this.frame * 0.3) * 4 : 0;
+    const walkSwing = (this.state === 'walk' || this.state === 'run') ? Math.sin(this.frame * 0.32) * 4.5 : 0;
     const gradDress = ctx.createLinearGradient(0, 0, 0, 24);
     gradDress.addColorStop(0, '#ff75a0');
-    gradDress.addColorStop(0.6, '#f72585');
+    gradDress.addColorStop(0.55, '#f72585');
     gradDress.addColorStop(1, '#b5179e');
 
     ctx.fillStyle = gradDress;
@@ -1709,14 +1940,14 @@ class Player {
     // Babado branco rendado na bainha do vestido
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(-8 + walkSwing, 22, 3.5, 0, Math.PI * 2);
-    ctx.arc(0 + walkSwing, 22, 3.5, 0, Math.PI * 2);
-    ctx.arc(8 + walkSwing, 22, 3.5, 0, Math.PI * 2);
+    ctx.arc(-8 + walkSwing, 22, 3.8, 0, Math.PI * 2);
+    ctx.arc(0 + walkSwing, 22, 3.8, 0, Math.PI * 2);
+    ctx.arc(8 + walkSwing, 22, 3.8, 0, Math.PI * 2);
     ctx.fill();
 
     // Perninhas / Sapatinhos de Cristal
     ctx.fillStyle = '#fce4ec';
-    const legOffset = (this.state === 'walk' || this.state === 'run') ? Math.sin(this.frame * 0.3) * 6 : 0;
+    const legOffset = (this.state === 'walk' || this.state === 'run') ? Math.sin(this.frame * 0.32) * 6 : 0;
     ctx.fillRect(-6 + legOffset, 20, 4, 5);
     ctx.fillRect(2 - legOffset, 20, 4, 5);
     ctx.fillStyle = '#00f2fe';
@@ -1725,7 +1956,7 @@ class Player {
 
     // 3. Corpete & Laço de Fita Dourado
     ctx.fillStyle = '#ffd166';
-    ctx.fillRect(-5, 4, 10, 3);
+    ctx.fillRect(-5, 4, 10, 3.2);
 
     // 4. Rosto Carismático
     ctx.fillStyle = '#ffdfba';
@@ -1734,12 +1965,12 @@ class Player {
     ctx.fill();
 
     // Bochechas coradas fofas
-    ctx.fillStyle = 'rgba(255, 64, 129, 0.45)';
+    ctx.fillStyle = 'rgba(255, 64, 129, 0.48)';
     ctx.beginPath();
-    ctx.arc(4, -6, 2.5, 0, Math.PI * 2);
+    ctx.arc(4, -6, 2.6, 0, Math.PI * 2);
     ctx.fill();
 
-    // Olho grande e expressivo com brilho
+    // Olho expressivo com brilho
     ctx.fillStyle = '#4a154b';
     ctx.beginPath();
     ctx.arc(5, -9, 2.6, 0, Math.PI * 2);
@@ -1770,10 +2001,10 @@ class Player {
 
     ctx.fillStyle = '#ff1744';
     ctx.beginPath();
-    ctx.arc(2, -18, 1.5, 0, Math.PI * 2);
+    ctx.arc(2, -18, 1.6, 0, Math.PI * 2);
     ctx.fill();
 
-    // 6. Varinha Mágica na Mão (se tiver o poder ativo)
+    // 6. Varinha Mágica na Mão (se tiver poder ativo)
     if (this.wandTimer > 0) {
       ctx.fillStyle = '#ffd700';
       ctx.fillRect(8, 0, 3, 16);
@@ -1788,10 +2019,10 @@ class Player {
 }
 
 // ============================================================
-// 11. SISTEMA DE FASES (5 MUNDOS PROGRESSIVOS E RICOS)
+// 11. SISTEMA DE FASES (5 MUNDOS PROGRESSIVOS E 100% CONCLUÍVEIS)
 // ============================================================
 class Level {
-  constructor(number, name, theme, length, platforms, items, enemies, boss = null) {
+  constructor(number, name, theme, length, platforms, items, enemies, boss = null, checkpointPos = null, portalPos = null) {
     this.number = number;
     this.name = name;
     this.theme = theme; // 'garden', 'forest', 'tower', 'sky', 'castle'
@@ -1800,8 +2031,14 @@ class Level {
     this.items = items;
     this.enemies = enemies;
     this.boss = boss;
-    this.checkpoint = new Checkpoint(Math.floor(length * 0.48), 380);
-    this.portal = new GoalPortal(length - 120, 370);
+
+    const cpX = checkpointPos ? checkpointPos.x : Math.floor(length * 0.45);
+    const cpY = checkpointPos ? checkpointPos.y : 390;
+    this.checkpoint = new Checkpoint(cpX, cpY);
+
+    const ptX = portalPos ? portalPos.x : length - 140;
+    const ptY = portalPos ? portalPos.y : 370;
+    this.portal = new GoalPortal(ptX, ptY);
   }
 
   static createLevel(index) {
@@ -1821,28 +2058,26 @@ class Level {
     }
   }
 
-  // FASE 1: Jardim Encantado
+  // FASE 1: Jardim Encantado (Introdutória, suave e acolhedora)
   static createLevel1() {
     const platforms = [
-      // Chão principal com buracos suaves para introduzir pulo
       new Platform(0, 460, 680, 80, 'solid'),
-      new Platform(780, 460, 600, 80, 'solid'),
-      new Platform(1480, 460, 720, 80, 'solid'),
-      new Platform(2300, 460, 900, 80, 'solid'),
-
-      // Plataformas elevadas e pontes de mármore
       new Platform(260, 360, 140, 24, 'solid'),
       new Platform(460, 300, 140, 24, 'solid'),
+      new Platform(780, 460, 600, 80, 'solid'),
       new Platform(880, 370, 160, 24, 'solid'),
       new Platform(1120, 310, 140, 24, 'solid'),
-      new Platform(1620, 350, 160, 24, 'cloud'),
-      new Platform(1860, 280, 160, 24, 'cloud'),
-      new Platform(2460, 370, 160, 24, 'solid'),
-      new Platform(2720, 310, 160, 24, 'solid')
+      new Platform(1300, 370, 140, 24, 'cloud'), // Ponte de nuvem suave
+      new Platform(1480, 460, 720, 80, 'solid'),
+      new Platform(1640, 350, 160, 24, 'cloud'),
+      new Platform(1880, 290, 160, 24, 'cloud'),
+      new Platform(2100, 370, 140, 24, 'cloud'), // Nuvem conectora segura
+      new Platform(2300, 460, 900, 80, 'solid'),
+      new Platform(2480, 370, 160, 24, 'solid'),
+      new Platform(2740, 310, 160, 24, 'solid')
     ];
 
     const items = [
-      // Moedas em arcos alegres
       new Item(180, 420, 'coin'),
       new Item(220, 400, 'coin'),
       new Item(290, 320, 'coin'),
@@ -1851,192 +2086,256 @@ class Level {
       new Item(920, 330, 'coin'),
       new Item(960, 330, 'coin'),
       new Item(1160, 270, 'wand'),
-      new Item(1660, 310, 'crystal'),
-      new Item(1700, 310, 'coin'),
-      new Item(1900, 240, 'star'),
-      new Item(2500, 330, 'coin'),
-      new Item(2760, 270, 'crown')
+      new Item(1680, 310, 'crystal'),
+      new Item(1720, 310, 'coin'),
+      new Item(1920, 250, 'star'),
+      new Item(2520, 330, 'coin'),
+      new Item(2780, 270, 'crown')
     ];
 
     const enemies = [
-      new Enemy(480, 420, 28, 40, 'witch'),
-      new Enemy(980, 420, 28, 40, 'witch'),
-      new Enemy(1720, 420, 28, 40, 'witch'),
-      new Enemy(2520, 420, 28, 40, 'witch')
+      new Enemy(480, 420, 28, 40, 'witch', 100),
+      new Enemy(980, 420, 28, 40, 'witch', 100),
+      new Enemy(1720, 420, 28, 40, 'witch', 110),
+      new Enemy(2520, 420, 28, 40, 'witch', 120)
     ];
 
-    return new Level(1, 'Jardim Encantado', 'garden', 3200, platforms, items, enemies);
+    return new Level(
+      1,
+      'Jardim Encantado',
+      'garden',
+      3200,
+      platforms,
+      items,
+      enemies,
+      null,
+      { x: 1560, y: 390 },
+      { x: 3050, y: 370 }
+    );
   }
 
   // FASE 2: Floresta Mágica (Plataformas móveis e cogumelos saltadores)
   static createLevel2() {
     const platforms = [
-      new Platform(0, 460, 500, 80, 'solid'),
-      new Platform(620, 460, 440, 80, 'solid'),
-      // Cogumelo saltador
-      new Platform(420, 435, 34, 25, 'spring'),
-      // Plataforma móvel horizontal sobre lago de névoa
-      new Platform(1180, 380, 120, 22, 'moving_h', { distance: 160, speed: 1.3 }),
-      new Platform(1500, 460, 600, 80, 'solid'),
-      new Platform(1700, 370, 140, 24, 'solid'),
-      // Plataforma móvel vertical
-      new Platform(2180, 360, 120, 22, 'moving_v', { distance: 80, speed: 1.5 }),
-      new Platform(2380, 460, 1000, 80, 'solid'),
-      new Platform(2580, 380, 140, 24, 'cloud'),
-      new Platform(2820, 310, 150, 24, 'cloud')
-    ];
-
-    const items = [
-      new Item(150, 420, 'coin'),
-      new Item(280, 420, 'coin'),
-      new Item(420, 300, 'crystal'),
-      new Item(700, 420, 'coin'),
-      new Item(800, 420, 'wand'),
-      new Item(1180, 330, 'crystal'),
-      new Item(1600, 420, 'heart'),
-      new Item(1740, 330, 'coin'),
-      new Item(2460, 420, 'coin'),
-      new Item(2620, 340, 'crystal'),
-      new Item(2860, 270, 'star'),
-      new Item(3050, 420, 'crown')
-    ];
-
-    const enemies = [
-      new Enemy(300, 420, 28, 40, 'witch'),
-      new Enemy(740, 420, 32, 32, 'dragon'),
-      new Enemy(1620, 420, 32, 32, 'dragon'),
-      new Enemy(2600, 420, 26, 26, 'shadow_imp')
-    ];
-
-    return new Level(2, 'Floresta Mágica', 'forest', 3400, platforms, items, enemies);
-  }
-
-  // FASE 3: Torre das Bruxas (Espinhos, armadilhas e criaturas encantadas)
-  static createLevel3() {
-    const platforms = [
-      new Platform(0, 460, 550, 80, 'solid'),
-      new Platform(550, 460, 180, 80, 'spikes'), // Armadilha de espinhos no chão
-      new Platform(730, 460, 600, 80, 'solid'),
-      new Platform(250, 360, 120, 22, 'solid'),
-      new Platform(450, 290, 140, 22, 'solid'),
-      new Platform(650, 340, 120, 22, 'cloud'),
-      new Platform(950, 360, 140, 22, 'moving_h', { distance: 130, speed: 1.4 }),
-      new Platform(1450, 460, 700, 80, 'solid'),
-      new Platform(1700, 370, 130, 22, 'cloud'),
-      new Platform(1920, 290, 130, 22, 'cloud'),
-      new Platform(2250, 460, 1200, 80, 'solid'),
-      new Platform(2400, 440, 100, 20, 'spikes'),
-      new Platform(2580, 350, 150, 22, 'moving_v', { distance: 90, speed: 1.6 })
-    ];
-
-    const items = [
-      new Item(180, 420, 'coin'),
-      new Item(280, 320, 'crystal'),
-      new Item(490, 250, 'wand'),
-      new Item(800, 420, 'coin'),
-      new Item(1000, 310, 'crystal'),
-      new Item(1520, 420, 'heart'),
-      new Item(1740, 330, 'coin'),
-      new Item(1960, 250, 'star'),
-      new Item(2700, 420, 'coin'),
-      new Item(2850, 420, 'crown')
-    ];
-
-    const enemies = [
-      new Enemy(350, 420, 28, 40, 'witch'),
-      new Enemy(840, 420, 28, 40, 'witch'),
-      new Enemy(1550, 420, 26, 26, 'shadow_imp'),
-      new Enemy(1820, 420, 32, 32, 'dragon'),
-      new Enemy(2800, 420, 26, 26, 'shadow_imp')
-    ];
-
-    return new Level(3, 'Torre das Bruxas', 'tower', 3600, platforms, items, enemies);
-  }
-
-  // FASE 4: Reino das Nuvens (Plataformas suspensas, dragões e desafios aéreos)
-  static createLevel4() {
-    const platforms = [
-      new Platform(0, 460, 400, 80, 'solid'),
-      new Platform(480, 420, 140, 24, 'cloud'),
-      new Platform(700, 360, 130, 22, 'moving_h', { distance: 150, speed: 1.5 }),
-      new Platform(1020, 320, 160, 24, 'cloud'),
-      new Platform(1260, 435, 34, 25, 'spring'), // Mola para grande impulso
-      new Platform(1380, 460, 450, 80, 'solid'),
-      new Platform(1900, 380, 140, 22, 'moving_v', { distance: 100, speed: 1.7 }),
-      new Platform(2150, 320, 150, 24, 'cloud'),
-      new Platform(2400, 260, 140, 22, 'moving_h', { distance: 160, speed: 1.6 }),
-      new Platform(2700, 460, 1000, 80, 'solid'),
-      new Platform(2900, 370, 160, 24, 'cloud')
+      new Platform(0, 460, 520, 80, 'solid'),
+      new Platform(440, 435, 42, 25, 'spring'), // Mola bem apoiada no solo
+      new Platform(620, 460, 480, 80, 'solid'),
+      new Platform(780, 360, 140, 24, 'solid'),
+      new Platform(1220, 370, 140, 24, 'moving_h', { distance: 120, speed: 1.2 }),
+      new Platform(1440, 460, 680, 80, 'solid'),
+      new Platform(1680, 370, 140, 24, 'solid'),
+      new Platform(1920, 340, 140, 24, 'cloud'), // Nuvem conectora segura
+      new Platform(2160, 380, 140, 24, 'moving_v', { distance: 60, speed: 1.3 }),
+      new Platform(2380, 460, 1020, 80, 'solid'),
+      new Platform(2600, 370, 150, 24, 'cloud'),
+      new Platform(2850, 300, 150, 24, 'cloud')
     ];
 
     const items = [
       new Item(160, 420, 'coin'),
-      new Item(520, 380, 'crystal'),
-      new Item(750, 310, 'wand'),
-      new Item(1070, 270, 'coin'),
-      new Item(1450, 420, 'heart'),
-      new Item(1950, 330, 'crystal'),
-      new Item(2200, 270, 'star'),
-      new Item(2460, 220, 'crown'),
-      new Item(2800, 420, 'coin'),
-      new Item(3000, 420, 'crystal')
+      new Item(280, 420, 'coin'),
+      new Item(440, 290, 'crystal'),
+      new Item(720, 420, 'coin'),
+      new Item(820, 320, 'wand'),
+      new Item(1220, 320, 'crystal'),
+      new Item(1600, 420, 'heart'),
+      new Item(1740, 330, 'coin'),
+      new Item(2460, 420, 'coin'),
+      new Item(2640, 330, 'crystal'),
+      new Item(2890, 260, 'star'),
+      new Item(3080, 420, 'crown')
     ];
 
     const enemies = [
-      new Enemy(220, 420, 32, 32, 'dragon'),
-      new Enemy(1480, 420, 32, 32, 'dragon'),
-      new Enemy(1620, 420, 28, 40, 'witch'),
-      new Enemy(2850, 420, 32, 32, 'dragon')
+      new Enemy(300, 420, 28, 40, 'witch', 90),
+      new Enemy(740, 420, 32, 32, 'dragon', 100),
+      new Enemy(1620, 420, 32, 32, 'dragon', 110),
+      new Enemy(2600, 420, 26, 26, 'shadow_imp', 80)
     ];
 
-    return new Level(4, 'Reino das Nuvens', 'sky', 3800, platforms, items, enemies);
+    return new Level(
+      2,
+      'Floresta Mágica',
+      'forest',
+      3400,
+      platforms,
+      items,
+      enemies,
+      null,
+      { x: 1540, y: 390 },
+      { x: 3250, y: 370 }
+    );
   }
 
-  // FASE 5: Castelo da Rainha das Sombras (Fase final com Arena e Chefe!)
-  static createLevel5() {
+  // FASE 3: Torre das Bruxas (Espinhos, desafios verticais e criaturas)
+  static createLevel3() {
     const platforms = [
-      new Platform(0, 460, 600, 80, 'solid'),
-      new Platform(300, 370, 140, 24, 'solid'),
-      new Platform(520, 300, 140, 24, 'solid'),
-      new Platform(700, 460, 500, 80, 'solid'),
-      new Platform(880, 370, 140, 22, 'cloud'),
-      new Platform(1100, 300, 140, 22, 'moving_h', { distance: 120, speed: 1.4 }),
-      new Platform(1300, 460, 500, 80, 'solid'),
-      new Platform(1450, 440, 120, 20, 'spikes'),
-
-      // ENTRADA DA GRANDE ARENA DO CHEFE (x = 1900 até 3200)
-      new Platform(1900, 460, 1300, 80, 'solid'),
-      new Platform(2050, 360, 140, 22, 'cloud'),
-      new Platform(2350, 310, 160, 22, 'cloud'),
-      new Platform(2650, 360, 140, 22, 'cloud')
+      new Platform(0, 460, 560, 80, 'solid'),
+      new Platform(240, 370, 130, 22, 'solid'),
+      new Platform(420, 300, 140, 22, 'solid'),
+      new Platform(560, 350, 140, 22, 'cloud'), // Rota aérea sobre os espinhos
+      new Platform(560, 440, 80, 20, 'spikes'), // Armadilha de espinhos de 80px (fácil de saltar)
+      new Platform(640, 460, 680, 80, 'solid'), // Chão firme continua até 1320
+      new Platform(1050, 360, 140, 22, 'moving_h', { distance: 110, speed: 1.3 }),
+      new Platform(1280, 350, 140, 22, 'cloud'), // Nuvem conectora segura
+      new Platform(1460, 460, 700, 80, 'solid'),
+      new Platform(1700, 360, 140, 22, 'cloud'),
+      new Platform(1920, 290, 140, 22, 'cloud'),
+      new Platform(2140, 370, 130, 22, 'cloud'), // Nuvem conectora
+      new Platform(2280, 460, 1320, 80, 'solid'), // Plataforma que estende até 3600
+      new Platform(2520, 440, 90, 20, 'spikes'),
+      new Platform(2500, 340, 140, 22, 'moving_v', { distance: 60, speed: 1.4 }),
+      new Platform(2660, 370, 140, 22, 'cloud') // Passagem segura pós-espinhos
     ];
 
     const items = [
       new Item(180, 420, 'coin'),
-      new Item(340, 330, 'crystal'),
-      new Item(560, 260, 'wand'),
-      new Item(780, 420, 'coin'),
-      new Item(920, 330, 'heart'),
-      new Item(1350, 420, 'wand'), // Varinha antes da arena do chefe!
-      new Item(1980, 420, 'heart'),
-      new Item(2390, 270, 'crystal')
+      new Item(270, 330, 'crystal'),
+      new Item(460, 260, 'wand'),
+      new Item(820, 420, 'coin'),
+      new Item(1080, 310, 'crystal'),
+      new Item(1540, 420, 'heart'),
+      new Item(1740, 320, 'coin'),
+      new Item(1960, 250, 'star'),
+      new Item(2720, 420, 'coin'),
+      new Item(2900, 420, 'crown')
     ];
 
     const enemies = [
-      new Enemy(380, 420, 28, 40, 'witch'),
-      new Enemy(800, 420, 32, 32, 'dragon'),
-      new Enemy(1020, 420, 26, 26, 'shadow_imp')
+      new Enemy(350, 420, 28, 40, 'witch', 80),
+      new Enemy(840, 420, 28, 40, 'witch', 100),
+      new Enemy(1560, 420, 26, 26, 'shadow_imp', 70),
+      new Enemy(1840, 420, 32, 32, 'dragon', 100),
+      new Enemy(2820, 420, 26, 26, 'shadow_imp', 80)
     ];
 
-    // Chefe posicionado na grande arena
+    return new Level(
+      3,
+      'Torre das Bruxas',
+      'tower',
+      3600,
+      platforms,
+      items,
+      enemies,
+      null,
+      { x: 1580, y: 390 },
+      { x: 3450, y: 370 }
+    );
+  }
+
+  // FASE 4: Reino das Nuvens (Plataformas suspensas, molas e saltos celestes)
+  static createLevel4() {
+    const platforms = [
+      new Platform(0, 460, 420, 80, 'solid'),
+      new Platform(440, 410, 130, 24, 'cloud'),
+      new Platform(590, 370, 130, 24, 'cloud'), // Conexão perfeita
+      new Platform(720, 340, 140, 22, 'moving_h', { distance: 100, speed: 1.3 }),
+      new Platform(920, 320, 150, 24, 'cloud'),
+      // Ilha de nuvem segura com cogumelo saltador firme
+      new Platform(1120, 450, 180, 30, 'cloud'),
+      new Platform(1180, 425, 44, 25, 'spring'),
+      new Platform(1360, 460, 520, 80, 'solid'),
+      new Platform(1600, 370, 140, 24, 'cloud'),
+      new Platform(1880, 380, 130, 22, 'cloud'), // Conexão segura
+      new Platform(2040, 360, 140, 22, 'moving_v', { distance: 60, speed: 1.4 }),
+      new Platform(2220, 320, 140, 24, 'cloud'), // Conexão segura
+      new Platform(2400, 280, 140, 22, 'moving_h', { distance: 100, speed: 1.4 }),
+      new Platform(2580, 360, 140, 24, 'cloud'),
+      new Platform(2760, 460, 1040, 80, 'solid'),
+      new Platform(2980, 370, 160, 24, 'cloud')
+    ];
+
+    const items = [
+      new Item(160, 420, 'coin'),
+      new Item(520, 370, 'crystal'),
+      new Item(740, 300, 'wand'),
+      new Item(960, 270, 'coin'),
+      new Item(1440, 420, 'heart'),
+      new Item(1960, 320, 'crystal'),
+      new Item(2180, 260, 'star'),
+      new Item(2420, 220, 'crown'),
+      new Item(2860, 420, 'coin'),
+      new Item(3040, 320, 'crystal')
+    ];
+
+    const enemies = [
+      new Enemy(220, 420, 32, 32, 'dragon', 80),
+      new Enemy(1480, 420, 32, 32, 'dragon', 100),
+      new Enemy(1680, 420, 28, 40, 'witch', 90),
+      new Enemy(2920, 420, 32, 32, 'dragon', 110)
+    ];
+
+    return new Level(
+      4,
+      'Reino das Nuvens',
+      'sky',
+      3800,
+      platforms,
+      items,
+      enemies,
+      null,
+      { x: 1460, y: 390 },
+      { x: 3650, y: 370 }
+    );
+  }
+
+  // FASE 5: Castelo da Rainha das Sombras (Fase final com Grande Arena e Chefe)
+  static createLevel5() {
+    const platforms = [
+      new Platform(0, 460, 600, 80, 'solid'),
+      new Platform(280, 370, 140, 24, 'solid'),
+      new Platform(480, 300, 140, 24, 'solid'),
+      new Platform(680, 460, 500, 80, 'solid'),
+      new Platform(840, 370, 140, 22, 'cloud'),
+      new Platform(1050, 300, 130, 22, 'moving_h', { distance: 100, speed: 1.3 }),
+      new Platform(1260, 460, 560, 80, 'solid'),
+      new Platform(1580, 440, 80, 20, 'spikes'),
+      new Platform(1540, 340, 150, 22, 'cloud'),
+      new Platform(1760, 380, 140, 22, 'cloud'), // Balcão conector para a arena
+
+      // GRANDE ARENA DO CHEFE (x = 1900 até 3200)
+      new Platform(1900, 460, 1300, 80, 'solid'),
+      new Platform(2060, 360, 150, 22, 'cloud'),
+      new Platform(2340, 300, 160, 22, 'cloud'),
+      new Platform(2620, 360, 150, 22, 'cloud')
+    ];
+
+    const items = [
+      new Item(180, 420, 'coin'),
+      new Item(320, 330, 'crystal'),
+      new Item(520, 260, 'wand'),
+      new Item(760, 420, 'coin'),
+      new Item(880, 330, 'heart'),
+      new Item(1380, 420, 'wand'),
+      new Item(1740, 420, 'heart'),
+      new Item(2380, 260, 'crystal')
+    ];
+
+    const enemies = [
+      new Enemy(380, 420, 28, 40, 'witch', 80),
+      new Enemy(780, 420, 32, 32, 'dragon', 100),
+      new Enemy(1350, 420, 26, 26, 'shadow_imp', 70)
+    ];
+
     const boss = new Boss(2480, 384);
 
-    return new Level(5, 'Castelo da Rainha das Sombras', 'castle', 3200, platforms, items, enemies, boss);
+    return new Level(
+      5,
+      'Castelo da Rainha das Sombras',
+      'castle',
+      3200,
+      platforms,
+      items,
+      enemies,
+      boss,
+      { x: 1380, y: 390 },
+      { x: 3080, y: 370 }
+    );
   }
 }
 
 // ============================================================
-// 12. CÂMERA & PARALLAX BACKGROUND
+// 12. CÂMERA & PARALLAX BACKGROUND EM 5 CAMADAS
 // ============================================================
 class Camera {
   constructor(viewportWidth, viewportHeight) {
@@ -2046,59 +2345,60 @@ class Camera {
     this.height = viewportHeight;
   }
 
-  update(player, levelLength) {
-    // Seguir suavemente a princesa horizontalmente com antecipação
+  update(player, levelLength, dt = 1/60) {
+    // Seguir suavemente a princesa com antecipação (Look-ahead)
     const targetX = player.x - this.width * 0.38;
-    this.x += (targetX - this.x) * 0.1;
+    const lerpRate = 1 - Math.exp(-6.5 * dt);
+    this.x += (targetX - this.x) * lerpRate;
 
-    // Limites de mundo
+    // Limites de mundo estritos
     if (this.x < 0) this.x = 0;
-    if (this.x > levelLength - this.width) this.x = levelLength - this.width;
+    if (this.x > levelLength - this.width) this.x = Math.max(0, levelLength - this.width);
   }
 
   drawParallax(ctx, theme, frame) {
-    // 1. Gradiente de Céu
+    // 1. Céu com Degradê Suave
     const skyGrad = ctx.createLinearGradient(0, 0, 0, this.height);
     if (theme === 'garden') {
-      skyGrad.addColorStop(0, '#ffb8d2');
-      skyGrad.addColorStop(0.5, '#ffd1e8');
-      skyGrad.addColorStop(1, '#e8d5f5');
+      skyGrad.addColorStop(0, '#fbcfe8');
+      skyGrad.addColorStop(0.5, '#fce7f3');
+      skyGrad.addColorStop(1, '#e0e7ff');
     } else if (theme === 'forest') {
-      skyGrad.addColorStop(0, '#3a0ca3');
-      skyGrad.addColorStop(0.5, '#7209b7');
-      skyGrad.addColorStop(1, '#f72585');
+      skyGrad.addColorStop(0, '#2e1065');
+      skyGrad.addColorStop(0.55, '#581c87');
+      skyGrad.addColorStop(1, '#db2777');
     } else if (theme === 'tower') {
-      skyGrad.addColorStop(0, '#1a002b');
-      skyGrad.addColorStop(0.6, '#4a0e4e');
-      skyGrad.addColorStop(1, '#9b51e0');
+      skyGrad.addColorStop(0, '#0f051d');
+      skyGrad.addColorStop(0.55, '#3b0764');
+      skyGrad.addColorStop(1, '#7e22ce');
     } else if (theme === 'sky') {
-      skyGrad.addColorStop(0, '#4cc9f0');
-      skyGrad.addColorStop(0.5, '#b5179e');
-      skyGrad.addColorStop(1, '#ffc6ff');
+      skyGrad.addColorStop(0, '#38bdf8');
+      skyGrad.addColorStop(0.5, '#c084fc');
+      skyGrad.addColorStop(1, '#fbcfe8');
     } else {
-      // Castelo Sombrio Real
-      skyGrad.addColorStop(0, '#10001a');
-      skyGrad.addColorStop(0.5, '#2e0854');
-      skyGrad.addColorStop(1, '#6a0dad');
+      // Castelo da Rainha
+      skyGrad.addColorStop(0, '#11021d');
+      skyGrad.addColorStop(0.5, '#2e0249');
+      skyGrad.addColorStop(1, '#6b21a8');
     }
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, this.width, this.height);
 
-    // 2. Nuvens e Estrelas Distantes (Velocidade 0.1)
+    // 2. Estrelas e Brilhos Distantes (Velocidade 0.08)
     const starShift = (this.x * 0.08) % this.width;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    for (let i = 0; i < 28; i++) {
-      const sx = ((i * 67 + frame * 0.2 - starShift) % this.width + this.width) % this.width;
-      const sy = (i * 29) % (this.height * 0.45);
-      const twinkle = Math.sin(frame * 0.08 + i) * 1.5 + 2;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    for (let i = 0; i < 30; i++) {
+      const sx = ((i * 71 + frame * 0.2 - starShift) % this.width + this.width) % this.width;
+      const sy = (i * 31) % (this.height * 0.45);
+      const twinkle = Math.sin(frame * 0.08 + i) * 1.5 + 2.0;
       ctx.beginPath();
       ctx.arc(sx, sy, Math.max(0.8, twinkle), 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // 3. Montanhas Mágicas Distantes (Velocidade 0.2)
+    // 3. Montanhas / Colinas Mágicas Distantes (Velocidade 0.2)
     const mtnShift = (this.x * 0.2) % 400;
-    ctx.fillStyle = 'rgba(121, 40, 202, 0.25)';
+    ctx.fillStyle = (theme === 'garden' || theme === 'sky') ? 'rgba(216, 180, 254, 0.35)' : 'rgba(121, 40, 202, 0.3)';
     ctx.beginPath();
     ctx.moveTo(0, this.height);
     for (let x = -400; x <= this.width + 400; x += 180) {
@@ -2113,10 +2413,9 @@ class Camera {
 
     // 4. Silhuetas de Torres do Castelo Rosa ao Fundo (Velocidade 0.35)
     const castleShift = (this.x * 0.35) % 520;
-    ctx.fillStyle = 'rgba(255, 105, 180, 0.32)';
+    ctx.fillStyle = 'rgba(244, 114, 182, 0.32)';
     for (let x = -520; x <= this.width + 520; x += 360) {
       const cx = x - castleShift;
-      // Torre com telhado cônico
       ctx.fillRect(cx + 80, this.height * 0.45, 48, this.height * 0.55);
       ctx.beginPath();
       ctx.moveTo(cx + 68, this.height * 0.45);
@@ -2126,20 +2425,42 @@ class Camera {
       ctx.fill();
 
       // Bandeira dourada
-      ctx.fillStyle = 'rgba(255, 215, 0, 0.6)';
+      ctx.fillStyle = 'rgba(255, 215, 0, 0.65)';
       ctx.fillRect(cx + 103, this.height * 0.28, 2, 20);
       ctx.beginPath();
       ctx.moveTo(cx + 105, this.height * 0.28);
       ctx.lineTo(cx + 120, this.height * 0.32);
       ctx.lineTo(cx + 105, this.height * 0.36);
       ctx.fill();
-      ctx.fillStyle = 'rgba(255, 105, 180, 0.32)';
+      ctx.fillStyle = 'rgba(244, 114, 182, 0.32)';
+    }
+
+    // 5. Pétalas de Flores / Vaga-lumes Flutuantes em Primeiro Plano
+    if (theme === 'garden') {
+      ctx.fillStyle = 'rgba(255, 182, 193, 0.65)';
+      for (let i = 0; i < 12; i++) {
+        const px = ((i * 97 + frame * 0.8 - this.x * 0.5) % this.width + this.width) % this.width;
+        const py = ((i * 53 + frame * 0.5) % this.height + this.height) % this.height;
+        ctx.beginPath();
+        ctx.ellipse(px, py, 4, 2.2, Math.sin(frame * 0.05 + i), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (theme === 'forest') {
+      ctx.fillStyle = 'rgba(167, 243, 208, 0.7)';
+      for (let i = 0; i < 14; i++) {
+        const px = ((i * 83 + Math.sin(frame * 0.04 + i) * 30 - this.x * 0.4) % this.width + this.width) % this.width;
+        const py = (i * 41 + Math.cos(frame * 0.04 + i) * 20) % (this.height * 0.8);
+        const glow = Math.sin(frame * 0.1 + i) * 1.5 + 2.5;
+        ctx.beginPath();
+        ctx.arc(px, py, glow, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   }
 }
 
 // ============================================================
-// 13. CLASSE PRINCIPAL: GAME ENGINE & LOOP
+// 13. CLASSE PRINCIPAL: GAME ENGINE & LOOP (FIXED TIMESTEP)
 // ============================================================
 class Game {
   constructor() {
@@ -2159,33 +2480,28 @@ class Game {
 
     this.state = 'MENU'; // 'MENU', 'PLAYING', 'PAUSED', 'LEVEL_CLEAR', 'GAME_OVER', 'VICTORY'
     this.lastTime = performance.now();
+    this.accumulator = 0;
+    this.fixedStep = 1 / 60; // 60 FPS físico determinístico
     this.frame = 0;
 
-    // Vincular callback de pausa
     this.input.pauseCallback = () => this.togglePause();
 
     this.initUI();
     this.resizeCanvas();
     window.addEventListener('resize', () => this.resizeCanvas());
 
-    // Iniciar loop de jogo
     requestAnimationFrame((t) => this.loop(t));
   }
 
   resizeCanvas() {
-    // Mantém proporção e resolução nítida
     const container = document.getElementById('gameContainer');
     if (!container) return;
-    const rect = container.getBoundingClientRect();
     this.canvas.width = 960;
     this.canvas.height = 540;
     this.camera.width = this.canvas.width;
     this.camera.height = this.canvas.height;
   }
 
-  // ==========================================================
-  // INTERFACE, MENUS E TELAS
-  // ==========================================================
   initUI() {
     // Menu Principal
     document.getElementById('btnStartGame').onclick = () => {
@@ -2248,6 +2564,7 @@ class Game {
         this.showVictoryScreen();
       }
     };
+
     document.getElementById('btnReplayLevel').onclick = () => {
       this.sound.playClick();
       this.startLevel(this.currentLevelIndex);
@@ -2425,9 +2742,6 @@ class Game {
     }
   }
 
-  // ==========================================================
-  // INÍCIO E CONTROLE DE FASES
-  // ==========================================================
   startLevel(index) {
     this.currentLevelIndex = index;
     this.level = Level.createLevel(index);
@@ -2466,7 +2780,6 @@ class Game {
     document.getElementById('valCrystals').innerText = this.player.crystals;
     document.getElementById('valScore').innerText = String(this.player.score).padStart(6, '0');
 
-    // Powerup ativo
     const hudPowerup = document.getElementById('hudPowerup');
     const powerupIcon = document.getElementById('powerupIcon');
     const powerupBar = document.getElementById('powerupBar');
@@ -2483,7 +2796,6 @@ class Game {
       hudPowerup.style.display = 'none';
     }
 
-    // Barra do Chefe
     if (this.level.boss && this.level.boss.alive) {
       const percent = Math.max(0, (this.level.boss.health / this.level.boss.maxHealth) * 100);
       document.getElementById('bossHealthPercent').innerText = `${Math.round(percent)}%`;
@@ -2491,23 +2803,17 @@ class Game {
     }
   }
 
-  // ==========================================================
-  // EVENTOS DE VITÓRIA & GAME OVER
-  // ==========================================================
   handleLevelComplete() {
     this.state = 'LEVEL_CLEAR';
     this.sound.playLevelClear();
-    this.particles.createConfetti(this.player.x, this.player.y, 40);
+    this.particles.createConfetti(this.player.x, this.player.y, 42);
 
-    // Bônus de pontuação por término de fase
     this.player.score += 2000;
 
-    // Calcular estrelas (1 a 3 estrelas com base em moedas/cristais)
     let stars = 1;
-    if (this.player.coins >= 8) stars = 2;
-    if (this.player.coins >= 8 && this.player.crystals >= 2) stars = 3;
+    if (this.player.coins >= 7) stars = 2;
+    if (this.player.coins >= 7 && this.player.crystals >= 2) stars = 3;
 
-    // Salvar progresso
     if (this.currentLevelIndex >= this.saveData.unlockedLevels && this.currentLevelIndex < 5) {
       this.saveData.unlockedLevels = this.currentLevelIndex + 1;
     }
@@ -2525,7 +2831,6 @@ class Game {
 
     StorageManager.save(this.saveData);
 
-    // Exibir Modal de Vitória da Fase
     document.getElementById('clearLevelTitle').innerText = `${this.level.name} Concluída!`;
     document.getElementById('clearCoins').innerText = `${this.player.coins}`;
     document.getElementById('clearCrystals').innerText = `${this.player.crystals}`;
@@ -2564,16 +2869,21 @@ class Game {
     this.showScreen('victoryModal');
   }
 
-  // ==========================================================
-  // LOOP PRINCIPAL DE ATUALIZAÇÃO E RENDERIZAÇÃO
-  // ==========================================================
   loop(timestamp) {
     const dt = Math.min((timestamp - this.lastTime) / 1000, 0.1);
     this.lastTime = timestamp;
     this.frame++;
 
     if (this.state === 'PLAYING') {
-      this.update(dt);
+      // Loop Físico com Fixed Timestep para estabilidade perfeita em 60/120/144Hz
+      this.accumulator += dt;
+      let updates = 0;
+      while (this.accumulator >= this.fixedStep && updates < 5) {
+        this.physicsUpdate(this.fixedStep);
+        this.accumulator -= this.fixedStep;
+        updates++;
+      }
+      if (updates >= 5) this.accumulator = 0; // Proteção contra espiral de lentidão
     }
 
     this.render();
@@ -2581,14 +2891,17 @@ class Game {
     requestAnimationFrame((t) => this.loop(t));
   }
 
-  update(dt) {
+  physicsUpdate(step) {
     // 1. Atualizar plataformas móveis
     for (const p of this.level.platforms) {
-      p.update(this.frame);
+      p.update(this.frame, step);
     }
 
-    // 2. Atualizar Jogador
-    this.player.update(dt, this.input, this.level.platforms, this.sound, this.particles, this.projectiles);
+    // 2. Atualizar controles e pulo com buffer
+    this.input.update(step);
+
+    // 3. Atualizar Princesa com física refinada
+    this.player.physicsUpdate(step, this.input, this.level.platforms, this.sound, this.particles, this.projectiles);
 
     // Queda no abismo
     if (this.player.y > this.canvas.height + 60) {
@@ -2599,15 +2912,14 @@ class Game {
       }
     }
 
-    // 3. Atualizar Câmera
-    this.camera.update(this.player, this.level.length);
+    // 4. Atualizar Câmera Suavemente
+    this.camera.update(this.player, this.level.length, step);
 
-    // 4. Atualizar e Colidir Itens
+    // 5. Coleta de Itens
     for (const item of this.level.items) {
       if (item.collected) continue;
-      item.update(dt, this.frame);
+      item.update(step, this.frame);
 
-      // Colisão Princesa x Item
       if (
         this.player.x < item.x + item.width &&
         this.player.x + this.player.width > item.x &&
@@ -2632,12 +2944,12 @@ class Game {
           this.sound.playPowerup();
           this.particles.createMagicBurst(item.x, item.y, 16, ['#ff4081', '#ffffff']);
         } else if (item.type === 'wand') {
-          this.player.wandTimer = 15.0; // 15 segundos de poder da varinha
+          this.player.wandTimer = 15.0;
           this.player.score += 400;
           this.sound.playPowerup();
           this.particles.createMagicBurst(item.x, item.y, 20, ['#ffd700', '#ff6595']);
         } else if (item.type === 'star') {
-          this.player.starTimer = 10.0; // 10 segundos de invencibilidade
+          this.player.starTimer = 10.0;
           this.player.score += 800;
           this.sound.playPowerup();
           this.particles.createMagicBurst(item.x, item.y, 22, ['#ffd700', '#76ff03', '#ff007f']);
@@ -2649,27 +2961,27 @@ class Game {
       }
     }
 
-    // 5. Atualizar Inimigos & Combate
+    // 6. Inimigos & Combate com Stomp e Dano
     for (const enemy of this.level.enemies) {
       if (!enemy.alive) continue;
-      enemy.update(dt, this.player, this.projectiles);
+      enemy.update(step, this.player, this.projectiles);
 
-      // Colisão Princesa x Inimigo
       if (
         this.player.x < enemy.x + enemy.width &&
         this.player.x + this.player.width > enemy.x &&
         this.player.y < enemy.y + enemy.height &&
         this.player.y + this.player.height > enemy.y
       ) {
-        // Se estiver caindo sobre a cabeça do inimigo ou com a Estrela mágica
-        if ((this.player.vy > 0 && this.player.y + this.player.height - enemy.y < 22) || this.player.starTimer > 0) {
+        // Se estiver caindo sobre o inimigo (Stomp) ou com a Estrela mágica
+        if ((this.player.vy > 0 && this.player.y + this.player.height - enemy.y < 24) || this.player.starTimer > 0) {
           enemy.alive = false;
-          this.player.vy = -8.5; // Pulo de ricochete satisfatório
+          this.player.vy = -9.2; // Pulo de ricochete satisfatório
+          this.player.grounded = false;
+          this.player.coyoteTimer = 0;
           this.player.score += 300;
           this.sound.playStomp();
           this.particles.createMagicBurst(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, 16, ['#ff6595', '#ffd700']);
         } else {
-          // Princesa recebe dano
           const isGameOver = this.player.takeHit(this.sound, this.particles);
           if (isGameOver) {
             this.handleGameOver();
@@ -2679,20 +2991,20 @@ class Game {
       }
     }
 
-    // 6. Atualizar Chefe Final (se houver)
+    // 7. Chefe Final (Fase 5)
     if (this.level.boss && this.level.boss.alive) {
-      this.level.boss.update(dt, this.player, this.projectiles, this.sound);
+      this.level.boss.update(step, this.player, this.projectiles, this.sound);
 
-      // Colisão Princesa x Chefe
       if (
         this.player.x < this.level.boss.x + this.level.boss.width &&
         this.player.x + this.player.width > this.level.boss.x &&
         this.player.y < this.level.boss.y + this.level.boss.height &&
         this.player.y + this.player.height > this.level.boss.y
       ) {
-        if (this.player.vy > 0 && this.player.y + this.player.height - this.level.boss.y < 26) {
+        if (this.player.vy > 0 && this.player.y + this.player.height - this.level.boss.y < 28) {
           const defeated = this.level.boss.takeDamage(this.sound, this.particles);
           this.player.vy = -10.0;
+          this.player.grounded = false;
           if (defeated) {
             this.handleLevelComplete();
             return;
@@ -2707,17 +3019,16 @@ class Game {
       }
     }
 
-    // 7. Atualizar Projéteis
+    // 8. Projéteis
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const proj = this.projectiles[i];
-      proj.update(dt);
+      proj.update(step);
 
       if (proj.life <= 0) {
         this.projectiles.splice(i, 1);
         continue;
       }
 
-      // Projétil da Princesa atingindo Inimigos ou Chefe
       if (proj.type === 'player_magic') {
         for (const enemy of this.level.enemies) {
           if (enemy.alive && Math.hypot(proj.x - (enemy.x + enemy.width / 2), proj.y - (enemy.y + enemy.height / 2)) < 24) {
@@ -2741,7 +3052,6 @@ class Game {
           }
         }
       } else {
-        // Projétil de Dragão ou Chefe atingindo a Princesa
         if (Math.hypot(proj.x - (this.player.x + this.player.width / 2), proj.y - (this.player.y + this.player.height / 2)) < 22) {
           proj.life = 0;
           const isGameOver = this.player.takeHit(this.sound, this.particles);
@@ -2753,33 +3063,30 @@ class Game {
       }
     }
 
-    // 8. Checkpoint
+    // 9. Checkpoint
     if (!this.level.checkpoint.active && this.player.x >= this.level.checkpoint.x) {
       this.level.checkpoint.active = true;
       this.player.checkpointX = this.level.checkpoint.x;
       this.player.checkpointY = this.level.checkpoint.y - 20;
       this.sound.playPowerup();
-      this.particles.createMagicBurst(this.level.checkpoint.x + 10, this.level.checkpoint.y, 20, ['#ffd700', '#ff6595']);
+      this.particles.createMagicBurst(this.level.checkpoint.x + 10, this.level.checkpoint.y, 22, ['#ffd700', '#ff6595']);
     }
 
-    // 9. Portal de Vitória / Fim de Fase
+    // 10. Portal de Vitória
     if (
       this.player.x < this.level.portal.x + this.level.portal.width &&
       this.player.x + this.player.width > this.level.portal.x &&
       this.player.y < this.level.portal.y + this.level.portal.height &&
       this.player.y + this.player.height > this.level.portal.y
     ) {
-      // Se tiver chefe vivo, o portal só ativa quando derrotado
       if (!this.level.boss || !this.level.boss.alive) {
         this.handleLevelComplete();
         return;
       }
     }
 
-    // 10. Partículas
-    this.particles.update(dt);
-
-    // 11. Sincronizar HUD
+    // 11. Partículas & HUD
+    this.particles.update(step);
     this.updateHUD();
   }
 
@@ -2787,7 +3094,6 @@ class Game {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     if (this.state === 'MENU') {
-      // Fundo animado no menu
       this.camera.drawParallax(this.ctx, 'garden', this.frame);
       return;
     }
@@ -2805,24 +3111,23 @@ class Game {
     this.level.checkpoint.draw(this.ctx, this.frame);
     this.level.portal.draw(this.ctx, this.frame);
 
-    // Plataformas
+    // Plataformas (Frustum culling)
     for (const p of this.level.platforms) {
-      // Frustum culling para performance
-      if (p.x + p.width >= this.camera.x && p.x <= this.camera.x + this.camera.width) {
+      if (p.x + p.width >= this.camera.x - 50 && p.x <= this.camera.x + this.camera.width + 50) {
         p.draw(this.ctx, this.level.theme);
       }
     }
 
     // Itens
     for (const item of this.level.items) {
-      if (item.x + item.width >= this.camera.x && item.x <= this.camera.x + this.camera.width) {
+      if (item.x + item.width >= this.camera.x - 50 && item.x <= this.camera.x + this.camera.width + 50) {
         item.draw(this.ctx, this.frame);
       }
     }
 
     // Inimigos
     for (const enemy of this.level.enemies) {
-      if (enemy.x + enemy.width >= this.camera.x && enemy.x <= this.camera.x + this.camera.width) {
+      if (enemy.x + enemy.width >= this.camera.x - 60 && enemy.x <= this.camera.x + this.camera.width + 60) {
         enemy.draw(this.ctx);
       }
     }
